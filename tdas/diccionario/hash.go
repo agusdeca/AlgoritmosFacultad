@@ -99,14 +99,17 @@ func funcionHash[K any](clave K, capacidad int) int {
 	return int(hash) % capacidad
 }
 
+func (h *hashCerrado[K, V]) crearTabla(capacidad int) {
+	h.tabla = make([]*celda[K, V], capacidad)
+	h.capacidad = capacidad
+	h.cantidad = 0
+	h.borrados = 0
+}
+
 func CrearHash[K any, V any](igualdad func(K, K) bool) Diccionario[K, V] {
-	return &hashCerrado[K, V]{
-		tabla:     make([]*celda[K, V], CAPACIDAD_INICIAL),
-		capacidad: CAPACIDAD_INICIAL,
-		cantidad:  0,
-		borrados:  0,
-		igualdad:  igualdad,
-	}
+	h := &hashCerrado[K, V]{igualdad: igualdad}
+	h.crearTabla(CAPACIDAD_INICIAL)
+	return h
 }
 
 func (h *hashCerrado[K, V]) factorCarga() float64 {
@@ -123,11 +126,7 @@ func (h *hashCerrado[K, V]) debeAchicar() bool {
 
 func (h *hashCerrado[K, V]) redimensionar(nuevaCapacidad int) {
 	tablaVieja := h.tabla
-	h.tabla = make([]*celda[K, V], nuevaCapacidad)
-	h.capacidad = nuevaCapacidad
-	h.cantidad = 0
-	h.borrados = 0
-
+	h.crearTabla(nuevaCapacidad)
 	for _, c := range tablaVieja {
 		if c != nil && c.estado == OCUPADO {
 			h.Guardar(c.clave, c.valor)
