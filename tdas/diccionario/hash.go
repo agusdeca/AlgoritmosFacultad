@@ -24,7 +24,7 @@ type celda[K any, V any] struct {
 }
 
 type hashCerrado[K any, V any] struct {
-	tabla     []*celda[K, V]
+	tabla     []celda[K, V]
 	capacidad int
 	cantidad  int
 	borrados  int
@@ -100,7 +100,7 @@ func funcionHash[K any](clave K, capacidad int) int {
 }
 
 func (h *hashCerrado[K, V]) crearTabla(capacidad int) {
-	h.tabla = make([]*celda[K, V], capacidad)
+	h.tabla = make([]celda[K, V], capacidad)
 	h.capacidad = capacidad
 	h.cantidad = 0
 	h.borrados = 0
@@ -128,7 +128,7 @@ func (h *hashCerrado[K, V]) redimensionar(nuevaCapacidad int) {
 	tablaVieja := h.tabla
 	h.crearTabla(nuevaCapacidad)
 	for _, c := range tablaVieja {
-		if c != nil && c.estado == OCUPADO {
+		if c.estado == OCUPADO {
 			h.Guardar(c.clave, c.valor)
 		}
 	}
@@ -139,7 +139,7 @@ func (h *hashCerrado[K, V]) buscar(clave K) (int, bool) {
 	inicio := pos
 
 	for {
-		if h.tabla[pos] == nil {
+		if h.tabla[pos].estado == VACIO {
 			return pos, false
 		}
 
@@ -161,7 +161,7 @@ func (h *hashCerrado[K, V]) buscarParaInsertar(clave K) (int, bool) {
 	claveExiste := false
 
 	for {
-		if h.tabla[pos] == nil {
+		if h.tabla[pos].estado == VACIO {
 			break
 		}
 
@@ -195,10 +195,10 @@ func (h *hashCerrado[K, V]) Guardar(clave K, valor V) {
 	if existe {
 		h.tabla[pos].valor = valor
 	} else {
-		if h.tabla[pos] != nil && h.tabla[pos].estado == BORRADO {
+		if h.tabla[pos].estado != VACIO && h.tabla[pos].estado == BORRADO {
 			h.borrados--
 		}
-		h.tabla[pos] = &celda[K, V]{
+		h.tabla[pos] = celda[K, V]{
 			clave:  clave,
 			valor:  valor,
 			estado: OCUPADO,
@@ -249,7 +249,7 @@ func (h *hashCerrado[K, V]) Cantidad() int {
 // Iterador interno
 func (h *hashCerrado[K, V]) Iterar(visitar func(clave K, dato V) bool) {
 	for _, c := range h.tabla {
-		if c != nil && c.estado == OCUPADO {
+		if c.estado == OCUPADO {
 			if !visitar(c.clave, c.valor) {
 				return
 			}
@@ -285,7 +285,7 @@ func (it *iterHash[K, V]) Siguiente() {
 
 func (it *iterHash[K, V]) avanzar() {
 	for i := it.posicion + 1; i < it.hash.capacidad; i++ {
-		if it.hash.tabla[i] != nil && it.hash.tabla[i].estado == OCUPADO {
+		if it.hash.tabla[i].estado == OCUPADO {
 			it.posicion = i
 			return
 		}
