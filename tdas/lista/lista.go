@@ -1,4 +1,4 @@
-package Lista
+package lista
 
 type Lista[T any] interface {
 
@@ -23,7 +23,7 @@ type Lista[T any] interface {
 	// "La lista esta vacia".
 	VerUltimo() T
 
-	// Largo devuelve la cantidad de elementos de la lista. 
+	// Largo devuelve la cantidad de elementos de la lista.
 	Largo() int
 
 	// Iterar aplica la función visitar a cada elemento de la lista en orden,
@@ -33,7 +33,6 @@ type Lista[T any] interface {
 
 	// Iterador devuelve un iterador externo posicionado al inicio de la lista.
 	Iterador() IteradorLista[T]
-
 }
 
 type IteradorLista[T any] interface {
