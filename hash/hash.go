@@ -24,7 +24,7 @@ type celda[K any, V any] struct {
 }
 
 type hashCerrado[K any, V any] struct {
-	tabla     []*celda[K, V]
+	tabla     []celda[K, V]
 	capacidad int
 	cantidad  int
 	borrados  int
@@ -41,7 +41,6 @@ func convertirABytes[K any](clave K) []byte {
 }
 
 // MurmurHash3 (32-bit)
-// Fuente original: https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp
 func funcionHash[K any](clave K, capacidad int) int {
 	bytes := convertirABytes(clave)
 
@@ -96,17 +95,25 @@ func funcionHash[K any](clave K, capacidad int) int {
 	hash *= 0xc2b2ae35
 	hash ^= hash >> 16
 
-	return int(hash) % capacidad
+	// Aseguramos que el resultado sea no negativo
+	resultado := int(hash) % capacidad
+	if resultado < 0 {
+		resultado += capacidad
+	}
+	return resultado
+}
+
+func (h *hashCerrado[K, V]) crearTabla(capacidad int) {
+	h.tabla = make([]celda[K, V], capacidad)
+	h.capacidad = capacidad
+	h.cantidad = 0
+	h.borrados = 0
 }
 
 func CrearHash[K any, V any](igualdad func(K, K) bool) Diccionario[K, V] {
-	return &hashCerrado[K, V]{
-		tabla:     make([]*celda[K, V], CAPACIDAD_INICIAL),
-		capacidad: CAPACIDAD_INICIAL,
-		cantidad:  0,
-		borrados:  0,
-		igualdad:  igualdad,
-	}
+	h := &hashCerrado[K, V]{igualdad: igualdad}
+	h.crearTabla(CAPACIDAD_INICIAL)
+	return h
 }
 
 func (h *hashCerrado[K, V]) factorCarga() float64 {
@@ -123,13 +130,9 @@ func (h *hashCerrado[K, V]) debeAchicar() bool {
 
 func (h *hashCerrado[K, V]) redimensionar(nuevaCapacidad int) {
 	tablaVieja := h.tabla
-	h.tabla = make([]*celda[K, V], nuevaCapacidad)
-	h.capacidad = nuevaCapacidad
-	h.cantidad = 0
-	h.borrados = 0
-
+	h.crearTabla(nuevaCapacidad)
 	for _, c := range tablaVieja {
-		if c != nil && c.estado == OCUPADO {
+		if c.estado == OCUPADO {
 			h.Guardar(c.clave, c.valor)
 		}
 	}
@@ -139,41 +142,30 @@ func (h *hashCerrado[K, V]) buscar(clave K) (int, bool) {
 	pos := funcionHash(clave, h.capacidad)
 	inicio := pos
 
-	for {
-		if h.tabla[pos] == nil {
-			return pos, false
-		}
-
+	for h.tabla[pos].estado != VACIO {
 		if h.tabla[pos].estado == OCUPADO && h.igualdad(h.tabla[pos].clave, clave) {
 			return pos, true
 		}
-
 		pos = (pos + 1) % h.capacidad
 		if pos == inicio {
-			return pos, false
+			break
 		}
 	}
+	return pos, false
 }
 
 func (h *hashCerrado[K, V]) buscarParaInsertar(clave K) (int, bool) {
 	pos := funcionHash(clave, h.capacidad)
 	inicio := pos
 	primerBorrado := -1
-	claveExiste := false
 
-	for {
-		if h.tabla[pos] == nil {
-			break
-		}
-
+	for h.tabla[pos].estado != VACIO {
 		if h.tabla[pos].estado == OCUPADO && h.igualdad(h.tabla[pos].clave, clave) {
 			return pos, true
 		}
-
 		if h.tabla[pos].estado == BORRADO && primerBorrado == -1 {
 			primerBorrado = pos
 		}
-
 		pos = (pos + 1) % h.capacidad
 		if pos == inicio {
 			break
@@ -181,9 +173,9 @@ func (h *hashCerrado[K, V]) buscarParaInsertar(clave K) (int, bool) {
 	}
 
 	if primerBorrado != -1 {
-		return primerBorrado, claveExiste
+		return primerBorrado, false
 	}
-	return pos, claveExiste
+	return pos, false
 }
 
 func (h *hashCerrado[K, V]) Guardar(clave K, valor V) {
@@ -196,10 +188,10 @@ func (h *hashCerrado[K, V]) Guardar(clave K, valor V) {
 	if existe {
 		h.tabla[pos].valor = valor
 	} else {
-		if h.tabla[pos] != nil && h.tabla[pos].estado == BORRADO {
+		if h.tabla[pos].estado == BORRADO {
 			h.borrados--
 		}
-		h.tabla[pos] = &celda[K, V]{
+		h.tabla[pos] = celda[K, V]{
 			clave:  clave,
 			valor:  valor,
 			estado: OCUPADO,
@@ -250,7 +242,7 @@ func (h *hashCerrado[K, V]) Cantidad() int {
 // Iterador interno
 func (h *hashCerrado[K, V]) Iterar(visitar func(clave K, dato V) bool) {
 	for _, c := range h.tabla {
-		if c != nil && c.estado == OCUPADO {
+		if c.estado == OCUPADO {
 			if !visitar(c.clave, c.valor) {
 				return
 			}
@@ -286,7 +278,7 @@ func (it *iterHash[K, V]) Siguiente() {
 
 func (it *iterHash[K, V]) avanzar() {
 	for i := it.posicion + 1; i < it.hash.capacidad; i++ {
-		if it.hash.tabla[i] != nil && it.hash.tabla[i].estado == OCUPADO {
+		if it.hash.tabla[i].estado == OCUPADO {
 			it.posicion = i
 			return
 		}
