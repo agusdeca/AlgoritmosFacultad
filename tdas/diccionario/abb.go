@@ -256,7 +256,7 @@ func (iter *iterAbb[K, V]) Siguiente() {
 		panic("El iterador termino de iterar")
 	}
 	nodo := iter.pila.Desapilar()
-	
+
 	if nodo.derecho != nil {
 		iter.apilarIzquierdos(nodo.derecho, nil)
 	}
