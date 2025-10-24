@@ -2,8 +2,10 @@ package diccionario_test
 
 import (
 	"fmt"
+	"math/rand"
 	"strings"
 	"testing"
+	"time"
 
 	TDADiccionario "tdas/diccionario"
 
@@ -24,7 +26,8 @@ func cmpInts(a, b int) int {
 	return 0
 }
 
-var TAMS_VOLUMEN_ABB = []int{1000, 5000, 10000, 20000}
+var TAMS_VOLUMEN_PRUEBA = 50000
+var TAMS_VOLUMEN_ABB = []int{1000, 10000, 50000}
 
 func TestAbbVacio(t *testing.T) {
 	t.Log("Un ABB vacío no tiene claves ni elementos")
@@ -55,6 +58,9 @@ func TestReemplazarDato(t *testing.T) {
 
 	dic := TDADiccionario.CrearABB[string, int](cmpStrings)
 	dic.Guardar("uno", 1)
+	require.EqualValues(t, 1, dic.Cantidad())
+	require.EqualValues(t, 1, dic.Obtener("uno"))
+
 	dic.Guardar("uno", 100)
 	require.EqualValues(t, 1, dic.Cantidad())
 	require.EqualValues(t, 100, dic.Obtener("uno"))
@@ -72,7 +78,9 @@ func TestBorrarElementos(t *testing.T) {
 
 	require.EqualValues(t, 0, dic.Borrar("D"))
 	require.EqualValues(t, 6, dic.Cantidad())
+	require.False(t, dic.Pertenece("D"))
 
+	require.PanicsWithValue(t, "La clave no pertenece al diccionario", func() { dic.Borrar("D") })
 	require.PanicsWithValue(t, "La clave no pertenece al diccionario", func() { dic.Borrar("Z") })
 }
 
@@ -159,9 +167,13 @@ func TestABBValorNulo(t *testing.T) {
 
 func TestBorrarCasosEspecificos(t *testing.T) {
 	t.Log("Verifica los tres casos de borrado: hoja, un hijo, dos hijos")
+	// Árbol:
+	//      D
+	//    /   \
+	//   B     F
+	//  / \   / \
+	// A   C E   G
 	dic := TDADiccionario.CrearABB[string, int](cmpStrings)
-
-	// Construir árbol específico
 	dic.Guardar("D", 4)
 	dic.Guardar("B", 2)
 	dic.Guardar("F", 6)
@@ -169,34 +181,60 @@ func TestBorrarCasosEspecificos(t *testing.T) {
 	dic.Guardar("C", 3)
 	dic.Guardar("E", 5)
 	dic.Guardar("G", 7)
+	require.EqualValues(t, 7, dic.Cantidad())
 
-	// Borrar hoja
+	// Caso 1: Borrar Hoja (A)
 	dic.Borrar("A")
 	require.False(t, dic.Pertenece("A"))
 	require.EqualValues(t, 6, dic.Cantidad())
 
-	// Borrar nodo con un hijo
+	// Caso 2: Borrar nodo con 1 hijo (B, tiene a C)
+	// Árbol debe quedar:
+	//      D
+	//    /   \
+	//   C     F
+	//        / \
+	//       E   G
 	dic.Borrar("B")
 	require.False(t, dic.Pertenece("B"))
 	require.True(t, dic.Pertenece("C"))
+	require.EqualValues(t, 5, dic.Cantidad())
 
-	// Borrar nodo con dos hijos
+	// Caso 3: Borrar nodo con 2 hijos (D, raíz)
+	// Sucesores 'E'.
+	// Árbol debe quedar:
+	//      E
+	//    /   \
+	//   C     F
+	//          \
+	//           G
 	dic.Borrar("D")
 	require.False(t, dic.Pertenece("D"))
+	require.EqualValues(t, 4, dic.Cantidad())
 	require.True(t, dic.Pertenece("E"))
 	require.True(t, dic.Pertenece("F"))
+	require.True(t, dic.Pertenece("C"))
+	require.True(t, dic.Pertenece("G"))
 }
 
 func TestABBGuardarYBorrarRepetidasVeces(t *testing.T) {
 	t.Log("Guardar y borrar repetidas veces verifica estabilidad del árbol")
 	dic := TDADiccionario.CrearABB[int, int](cmpInts)
 
-	for i := 0; i < 1000; i++ {
+	n := 1000
+	for i := 0; i < n; i++ {
 		dic.Guardar(i, i)
 		require.True(t, dic.Pertenece(i))
-		dic.Borrar(i)
-		require.False(t, dic.Pertenece(i))
+		require.EqualValues(t, i+1, dic.Cantidad())
 	}
+
+	for i := 0; i < n; i++ {
+		require.EqualValues(t, i, dic.Borrar(i))
+		require.False(t, dic.Pertenece(i))
+		require.EqualValues(t, n-1-i, dic.Cantidad())
+	}
+
+	require.EqualValues(t, 0, dic.Cantidad())
 }
 
 func TestIteradorInternoOrdenado(t *testing.T) {
@@ -330,32 +368,39 @@ func TestMultiplesIteradores(t *testing.T) {
 	iter1 := dic.Iterador()
 	iter2 := dic.Iterador()
 
-	// Avanzar el primer iterador
 	iter1.Siguiente()
 	iter1.Siguiente()
 
-	// El segundo no debería haberse movido
 	clave, _ := iter2.VerActual()
 	require.EqualValues(t, "A", clave)
 	require.True(t, iter2.HaySiguiente())
 }
 
-func ejecutarPruebaVolumenABB(b *testing.B, n int) {
+func ejecutarPruebaVolumenABB(tb testing.TB, n int, ordenado bool) {
 	dic := TDADiccionario.CrearABB[string, int](cmpStrings)
 
 	claves := make([]string, n)
 	valores := make([]int, n)
 
-	// Insertar n elementos
 	for i := 0; i < n; i++ {
 		valores[i] = i
 		claves[i] = fmt.Sprintf("%08d", i)
+	}
+
+	if !ordenado {
+		rand.Seed(time.Now().UnixNano())
+		rand.Shuffle(len(claves), func(i, j int) {
+			claves[i], claves[j] = claves[j], claves[i]
+			valores[i], valores[j] = valores[j], valores[i]
+		})
+	}
+
+	for i := 0; i < n; i++ {
 		dic.Guardar(claves[i], valores[i])
 	}
 
-	require.EqualValues(b, n, dic.Cantidad(), "La cantidad de elementos es incorrecta")
+	require.EqualValues(tb, n, dic.Cantidad(), "La cantidad de elementos es incorrecta")
 
-	// Verificar Pertenece y Obtener
 	ok := true
 	for i := 0; i < n; i++ {
 		ok = dic.Pertenece(claves[i])
@@ -367,9 +412,8 @@ func ejecutarPruebaVolumenABB(b *testing.B, n int) {
 			break
 		}
 	}
-	require.True(b, ok, "Pertenece y Obtener con muchos elementos no funciona correctamente")
+	require.True(tb, ok, "Pertenece y Obtener con muchos elementos no funciona correctamente")
 
-	// Verificar Borrar
 	for i := 0; i < n; i++ {
 		ok = dic.Borrar(claves[i]) == valores[i]
 		if !ok {
@@ -380,23 +424,23 @@ func ejecutarPruebaVolumenABB(b *testing.B, n int) {
 			break
 		}
 	}
-	require.True(b, ok, "Borrar muchos elementos no funciona correctamente")
-	require.EqualValues(b, 0, dic.Cantidad())
+	require.True(tb, ok, "Borrar muchos elementos no funciona correctamente")
+	require.EqualValues(tb, 0, dic.Cantidad())
 }
 
-func BenchmarkABB(b *testing.B) {
-	b.Log("Prueba de stress del ABB. Prueba guardando distinta cantidad de elementos (muy grandes), " +
-		"ejecutando muchas veces las pruebas para generar un benchmark")
-	for _, n := range TAMS_VOLUMEN_ABB {
-		b.Run(fmt.Sprintf("Prueba %d elementos", n), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				ejecutarPruebaVolumenABB(b, n)
-			}
-		})
-	}
+func TestVolumenABBOrdenado(t *testing.T) {
+	t.Log("Prueba de volumen (peor caso, inserción ordenada)")
+	n := TAMS_VOLUMEN_PRUEBA
+	ejecutarPruebaVolumenABB(t, n, true)
 }
 
-func ejecutarPruebasVolumenIteradorABB(b *testing.B, n int) {
+func TestVolumenABBAleatorio(t *testing.T) {
+	t.Log("Prueba de volumen (caso promedio, inserción aleatoria)")
+	n := TAMS_VOLUMEN_PRUEBA
+	ejecutarPruebaVolumenABB(t, n, false)
+}
+
+func ejecutarPruebasVolumenIteradorABB(tb testing.TB, n int, ordenado bool) {
 	dic := TDADiccionario.CrearABB[string, *int](cmpStrings)
 
 	claves := make([]string, n)
@@ -405,23 +449,31 @@ func ejecutarPruebasVolumenIteradorABB(b *testing.B, n int) {
 	for i := 0; i < n; i++ {
 		claves[i] = fmt.Sprintf("%08d", i)
 		valores[i] = i
+	}
+
+	if !ordenado {
+		// Desordenamos las claves
+		rand.Seed(time.Now().UnixNano())
+		rand.Shuffle(len(claves), func(i, j int) {
+			claves[i], claves[j] = claves[j], claves[i]
+			valores[i], valores[j] = valores[j], valores[i]
+		})
+	}
+
+	for i := 0; i < n; i++ {
 		dic.Guardar(claves[i], &valores[i])
 	}
 
 	// Prueba de iteración
 	iter := dic.Iterador()
-	require.True(b, iter.HaySiguiente())
+	require.True(tb, iter.HaySiguiente())
 
 	ok := true
 	var i int
 	var clave string
 	var valor *int
 
-	for i = 0; i < n; i++ {
-		if !iter.HaySiguiente() {
-			ok = false
-			break
-		}
+	for i = 0; iter.HaySiguiente(); i++ {
 		c1, v1 := iter.VerActual()
 		clave = c1
 		if clave == "" {
@@ -437,9 +489,9 @@ func ejecutarPruebasVolumenIteradorABB(b *testing.B, n int) {
 		iter.Siguiente()
 	}
 
-	require.True(b, ok, "Iteracion en volumen no funciona correctamente")
-	require.EqualValues(b, n, i, "No se recorrió todo el largo")
-	require.False(b, iter.HaySiguiente(), "El iterador debe estar al final")
+	require.True(tb, ok, "Iteracion en volumen no funciona correctamente")
+	require.EqualValues(tb, n, i, "No se recorrió todo el largo")
+	require.False(tb, iter.HaySiguiente(), "El iterador debe estar al final")
 
 	ok = true
 	for i = 0; i < n; i++ {
@@ -448,44 +500,49 @@ func ejecutarPruebasVolumenIteradorABB(b *testing.B, n int) {
 			break
 		}
 	}
-	require.True(b, ok, "No se cambiaron todos los elementos")
+	require.True(tb, ok, "No se cambiaron todos los elementos")
 }
 
-func BenchmarkIteradorABB(b *testing.B) {
-	b.Log("Prueba de stress del Iterador del ABB")
-	for _, n := range TAMS_VOLUMEN_ABB {
-		b.Run(fmt.Sprintf("Prueba %d elementos", n), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				ejecutarPruebasVolumenIteradorABB(b, n)
-			}
-		})
-	}
+func TestVolumenIteradorOrdenado(t *testing.T) {
+	t.Log("Prueba de volumen del iterador (peor caso, inserción ordenada)")
+	n := TAMS_VOLUMEN_PRUEBA
+	ejecutarPruebasVolumenIteradorABB(t, n, true)
+}
+
+func TestVolumenIteradorAleatorio(t *testing.T) {
+	t.Log("Prueba de volumen del iterador (caso promedio, inserción aleatoria)")
+	n := TAMS_VOLUMEN_PRUEBA
+	ejecutarPruebasVolumenIteradorABB(t, n, false)
 }
 
 func TestABBVolumenIteradorCorte(t *testing.T) {
 	t.Log("Prueba de volumen de iterador interno, validando que siempre que se indique corte, se corte")
 
 	dic := TDADiccionario.CrearABB[int, int](cmpInts)
-
-	for i := 0; i < 10000; i++ {
+	n := 50000
+	for i := 0; i < n; i++ {
 		dic.Guardar(i, i)
 	}
 
 	seguirEjecutando := true
 	siguioEjecutandoCuandoNoDebia := false
+	corteEn := n / 10
+	contador := 0
 
 	dic.Iterar(func(c int, v int) bool {
 		if !seguirEjecutando {
 			siguioEjecutandoCuandoNoDebia = true
 			return false
 		}
-		if c%100 == 0 && c > 0 {
+		if c == corteEn {
 			seguirEjecutando = false
 			return false
 		}
+		contador++
 		return true
 	})
 
 	require.False(t, seguirEjecutando, "Se tendría que haber encontrado un elemento que genere el corte")
 	require.False(t, siguioEjecutandoCuandoNoDebia, "No debería haber seguido ejecutando después del corte")
+	require.EqualValues(t, corteEn, contador, "El contador no coincide con el punto de corte")
 }
