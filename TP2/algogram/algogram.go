@@ -1,6 +1,8 @@
 package algogram
 
-import "tp2/tdas"
+import (
+    "tp2/tdas/diccionario"
+)
 
 type AlgoGram interface {
 	// CargarUsuarios lee el archivo
@@ -30,10 +32,10 @@ const CAPACIDAD_INICIAL_USUARIOS = 2
 // Crea la instancia de la implementación
 func NewAlgoGram() AlgoGram {
 	return &algogramImpl{
-		usuarios_hash:   tda.CrearHash[string, *usuario](),
+		usuarios_hash:   diccionario.CrearHash[string, *usuario](func(a, b string) bool { return a == b }),
 		usuarios_lista:  make([]*usuario, CAPACIDAD_INICIAL_USUARIOS),
 		usuarios_cantidad: 0,
-		posts:           tda.CrearHash[int, *post](),
+		posts:           diccionario.CrearHash[int, *post](func(a, b int) bool { return a == b }),
 		usuario_loggeado: nil,
 		proximo_id_post: 0,
 	}

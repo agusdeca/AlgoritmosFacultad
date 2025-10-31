@@ -1,7 +1,7 @@
 package diccionario
 
 import (
-	TDAPila "tdas/pila"
+	TDAPila "tp2/tdas/pila"
 )
 
 // funcion de comparacion

@@ -6,16 +6,24 @@ import (
 	"math"
 	"os"
 	"strings"
-	"tp2/tda"
+    "tp2/tdas/diccionario"
 )
 
 type algogramImpl struct {
-	usuarios_hash  tda.CrearHash[string, *usuario] 
-	usuarios_lista []*usuario
+	usuarios_hash  diccionario.Diccionario[string, *usuario]
+	usuarios_lista    []*usuario
 	usuarios_cantidad int 
-	posts tda.CrearHash[int, *post]
+	posts diccionario.Diccionario[int, *post]
 	usuario_loggeado *usuario
 	proximo_id_post int
+}
+
+func CrearAlgogram() *algogramImpl {
+	return &algogramImpl{
+		usuarios_hash: diccionario.CrearHash[string, *usuario](func(a, b string) bool { return a == b }),
+		posts:         diccionario.CrearHash[int, *post](func(a, b int) bool { return a == b }),
+		usuarios_lista: make([]*usuario, 10), 
+	}
 }
 
 func (ag *algogramImpl) CargarUsuarios(ruta string) error {
@@ -29,7 +37,7 @@ func (ag *algogramImpl) CargarUsuarios(ruta string) error {
 	nro_linea := 0
 	for scanner.Scan() {
 		nombre := scanner.Text()
-		nuevoUsuario := newUsuario(nombre, nro_linea) 
+		nuevoUsuario := nuevoUsuario(nombre, nro_linea) 
 		
 		if ag.usuarios_cantidad == cap(ag.usuarios_lista) {
 			
@@ -50,12 +58,12 @@ func (ag *algogramImpl) CargarUsuarios(ruta string) error {
 
 func (ag *algogramImpl) Login(nombre string) string {
 	if ag.usuario_loggeado != nil {
-		return "Error: Ya habia un usuario logeado"
+		return "Error: Ya habia un usuario loggeado"
 	}
-	usuario, existe := ag.usuarios_hash.Obtener(nombre)
-	if !existe {
+	if !ag.usuarios_hash.Pertenece(nombre) {
 		return "Error: usuario no existente"
 	}
+	usuario := ag.usuarios_hash.Obtener(nombre)
 	ag.usuario_loggeado = usuario
 	return fmt.Sprintf("Hola %s", nombre)
 }
@@ -75,7 +83,7 @@ func (ag *algogramImpl) Publicar(texto string) string {
 
 	idActual := ag.proximo_id_post
 	autor := ag.usuario_loggeado
-	nuevoPost := newPost(idActual, autor, texto)
+	nuevoPost := nuevoPost(idActual, autor, texto)
 
 	ag.posts.Guardar(idActual, nuevoPost)
 	ag.proximo_id_post++
@@ -87,9 +95,9 @@ func (ag *algogramImpl) Publicar(texto string) string {
 			continue 
 		}
 		
-		afinidad := int(math.Abs(float64(autor.nro_linea - u.nro_linea)))
+		afinidad := int(math.Abs(float64(autor.posicion - u.posicion)))
 		
-		entradaFeed := postFeed{
+		entradaFeed := entradaFeed{
 			post:      nuevoPost,
 			prioridad: afinidad,
 			id_post:   idActual,
@@ -103,38 +111,40 @@ func (ag *algogramImpl) VerSiguienteFeed() string {
 	if ag.usuario_loggeado == nil {
 		return "Usuario no loggeado o no hay mas posts para ver"
 	}
-	postFeed, err := ag.usuario_loggeado.obtenerProximoPost()
-	if err != nil { 
+	post := ag.usuario_loggeado.proximoPost()
+	if post == nil {
 		return "Usuario no loggeado o no hay mas posts para ver"
 	}
-	p := postFeed.post
 	return fmt.Sprintf("Post ID %d\n%s dijo: %s\nLikes: %d",
-		p.id,
-		p.autor.nombre,
-		p.texto,
-		p.cant_likes)
+		post.id,
+		post.autor.nombre,
+		post.texto,
+		post.cantidadLikes())
 }
 
 func (ag *algogramImpl) LikearPost(id int) string {
 	if ag.usuario_loggeado == nil {
 		return "Error: Usuario no loggeado o Post inexistente"
 	}
-	post, existe := ag.posts.Obtener(id)
-	if !existe {
+	if !ag.posts.Pertenece(id) {
 		return "Error: Usuario no loggeado o Post inexistente"
 	}
+	post := ag.posts.Obtener(id)
 	post.darLike(ag.usuario_loggeado.nombre)
 	return "Post likeado"
 }
 
 func (ag *algogramImpl) MostrarLikes(id int) string {
-	post, existe := ag.posts.Obtener(id)
-	if !existe || post.cant_likes == 0 {
+	if !ag.posts.Pertenece(id) {
 		return "Error: Post inexistente o sin likes"
 	}
-	nombres := post.obtenerLikes()
+	post := ag.posts.Obtener(id)
+	if post.cantidadLikes() == 0 {
+		return "Error: Post inexistente o sin likes"
+	}
+	nombres := post.obtenerUsuariosLikes()
 	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf("El post tiene %d likes:\n", post.cant_likes))
+	builder.WriteString(fmt.Sprintf("El post tiene %d likes:\n", post.cantidadLikes()))
 	for _, nombre := range nombres { 
 		builder.WriteString(fmt.Sprintf("\t%s\n", nombre))
 	}
