@@ -1,11 +1,11 @@
 package diccionario
 
 import (
-	TDAPila "tp2/tdas/pila"
+	TDAPila "tdas/pila"
 )
 
 // funcion de comparacion
-type funcCmp[K comparable] func(K, K) int
+type funcCmp[K any] func(K, K) int
 
 type nodoAbb[K comparable, V any] struct {
 	izquierdo *nodoAbb[K, V]
@@ -34,110 +34,112 @@ func CrearABB[K comparable, V any](cmp func(K, K) int) DiccionarioOrdenado[K, V]
 
 // Guardar inserta o reemplaza una clave
 func (a *abb[K, V]) Guardar(clave K, dato V) {
-	padre, nodo := buscarNodo(a.raiz, clave, a.cmp)
+	a.raiz = a.insertarRec(a.raiz, clave, dato)
+}
 
-	if nodo != nil {
-		// Caso 1: La clave ya existe. Actualizamos el dato.
-		nodo.dato = dato
-		return
+// Insertar recursivamente en el arbol
+func (a *abb[K, V]) insertarRec(n *nodoAbb[K, V], clave K, dato V) *nodoAbb[K, V] {
+	if n == nil {
+		a.cantidad++
+		return &nodoAbb[K, V]{clave: clave, dato: dato}
 	}
 
-	// Caso 2: La clave no existe. Creamos un nuevo nodo.
-	nuevoNodo := &nodoAbb[K, V]{clave: clave, dato: dato}
-	a.cantidad++
-
-	if padre == nil {
-		a.raiz = nuevoNodo
+	comp := a.cmp(clave, n.clave)
+	if comp == 0 {
+		n.dato = dato
+	} else if comp < 0 {
+		n.izquierdo = a.insertarRec(n.izquierdo, clave, dato)
 	} else {
-		comp := a.cmp(clave, padre.clave)
-		if comp < 0 {
-			padre.izquierdo = nuevoNodo
-		} else {
-			padre.derecho = nuevoNodo
-		}
+		n.derecho = a.insertarRec(n.derecho, clave, dato)
 	}
+	return n
 }
 
 // Pertenece indica si una clave está en el ABB
 func (a *abb[K, V]) Pertenece(clave K) bool {
-	_, nodo := buscarNodo(a.raiz, clave, a.cmp)
-	return nodo != nil
+	return a.buscarRec(a.raiz, clave) != nil
 }
 
 // Obtener devuelve el valor asociado a una clave
 func (a *abb[K, V]) Obtener(clave K) V {
-	_, nodo := buscarNodo(a.raiz, clave, a.cmp)
+	nodo := a.buscarRec(a.raiz, clave)
 	if nodo == nil {
 		panic(MENSAJE_CLAVE_INEXIST)
 	}
 	return nodo.dato
 }
 
-func buscarNodo[K comparable, V any](raiz *nodoAbb[K, V], clave K, cmp funcCmp[K]) (padre *nodoAbb[K, V], nodo *nodoAbb[K, V]) {
-	padre = nil
-	nodo = raiz
-
-	for nodo != nil {
-		comp := cmp(clave, nodo.clave)
-		if comp == 0 {
-			return padre, nodo
-		}
-		padre = nodo
-		if comp < 0 {
-			nodo = nodo.izquierdo
-		} else {
-			nodo = nodo.derecho
-		}
+// Buscar recursivamente de una clave
+func (a *abb[K, V]) buscarRec(n *nodoAbb[K, V], clave K) *nodoAbb[K, V] {
+	if n == nil {
+		return nil
 	}
-	return padre, nil
+	comp := a.cmp(clave, n.clave)
+	if comp == 0 {
+		return n
+	}
+	if comp < 0 {
+		return a.buscarRec(n.izquierdo, clave)
+	}
+	return a.buscarRec(n.derecho, clave)
 }
 
 // Borrar elimina una clave del ABB y devuelve su valor
 func (a *abb[K, V]) Borrar(clave K) V {
-	padre, nodo := buscarNodo(a.raiz, clave, a.cmp)
-
-	if nodo == nil {
+	nuevaRaiz, borrado, ok := a.borrarRec(a.raiz, clave)
+	if !ok {
 		panic(MENSAJE_CLAVE_INEXIST)
 	}
-
-	dato := nodo.dato
+	a.raiz = nuevaRaiz
 	a.cantidad--
-
-	if nodo.izquierdo == nil {
-		// Caso 1: 0 hijos o 1 hijo (derecho)
-		reemplazarHijo(a, padre, nodo, nodo.derecho)
-	} else if nodo.derecho == nil {
-		// Caso 2: 1 hijo (izquierdo)
-		reemplazarHijo(a, padre, nodo, nodo.izquierdo)
-	} else {
-		// Caso 3: 2 hijos
-		padreSucesor, sucesor := buscarMinimoConPadre(nodo.derecho, nodo)
-
-		nodo.clave, nodo.dato = sucesor.clave, sucesor.dato
-
-		reemplazarHijo(a, padreSucesor, sucesor, sucesor.derecho)
-	}
-	return dato
+	return borrado
 }
 
-func reemplazarHijo[K comparable, V any](a *abb[K, V], padre *nodoAbb[K, V], nodo *nodoAbb[K, V], reemplazo *nodoAbb[K, V]) {
-	if padre == nil {
-		// 'nodo' era la raiz
-		a.raiz = reemplazo
-	} else if padre.izquierdo == nodo {
-		padre.izquierdo = reemplazo
-	} else {
-		padre.derecho = reemplazo
+// Borro recursivo con los tres casos
+func (a *abb[K, V]) borrarRec(n *nodoAbb[K, V], clave K) (*nodoAbb[K, V], V, bool) {
+	if n == nil {
+		var cero V
+		return nil, cero, false
 	}
+
+	comp := a.cmp(clave, n.clave)
+	if comp < 0 {
+		var borrado V
+		var ok bool
+		n.izquierdo, borrado, ok = a.borrarRec(n.izquierdo, clave)
+		return n, borrado, ok
+	}
+	if comp > 0 {
+		var borrado V
+		var ok bool
+		n.derecho, borrado, ok = a.borrarRec(n.derecho, clave)
+		return n, borrado, ok
+	}
+
+	// Caso base: encontramos la clave
+	borrado := n.dato
+	if n.izquierdo == nil && n.derecho == nil {
+		return nil, borrado, true
+	}
+	if n.izquierdo == nil {
+		return n.derecho, borrado, true
+	}
+	if n.derecho == nil {
+		return n.izquierdo, borrado, true
+	}
+
+	min := a.minimo(n.derecho)
+	n.clave, n.dato = min.clave, min.dato
+	n.derecho, _, _ = a.borrarRec(n.derecho, min.clave)
+	return n, borrado, true
 }
 
-func buscarMinimoConPadre[K comparable, V any](nodo *nodoAbb[K, V], padre *nodoAbb[K, V]) (*nodoAbb[K, V], *nodoAbb[K, V]) {
-	actual := nodo
-	for actual.izquierdo != nil {
-		padre = actual
-		actual = actual.izquierdo
+// Devuelve el nodo con la clave min del subarbol
+func (a *abb[K, V]) minimo(n *nodoAbb[K, V]) *nodoAbb[K, V] {
+	if n.izquierdo == nil {
+		return n
 	}
-	return padre, actual
+	return a.minimo(n.izquierdo)
 }
 
 // Cantidad devuelve el num de elem
@@ -147,37 +149,36 @@ func (a *abb[K, V]) Cantidad() int {
 
 // Iterador interno
 func (a *abb[K, V]) Iterar(visitar func(K, V) bool) {
-	iterarRango(a.raiz, a.cmp, nil, nil, visitar)
+	a.IterarRango(nil, nil, visitar)
 }
 
 func (a *abb[K, V]) IterarRango(desde, hasta *K, visitar func(K, V) bool) {
-	iterarRango(a.raiz, a.cmp, desde, hasta, visitar)
+	a.iterarRangoRec(a.raiz, desde, hasta, visitar)
 }
 
-// Func aux que recorre el arbol recursivamente y ve solo las claves dentro del rango
-func iterarRango[K comparable, V any](nodo *nodoAbb[K, V], cmp funcCmp[K], desde, hasta *K, visitar func(K, V) bool) bool {
-	if nodo == nil {
+// Recorre el arbol recursivamente y mira solo las claves dentro del rango
+func (a *abb[K, V]) iterarRangoRec(n *nodoAbb[K, V], desde, hasta *K, visitar func(K, V) bool) bool {
+	if n == nil {
 		return true
 	}
-
-	if desde == nil || cmp(nodo.clave, *desde) >= 0 {
-		if !iterarRango(nodo.izquierdo, cmp, desde, hasta, visitar) {
+	// Recorro izq si estoy en el rango inf
+	if desde == nil || a.cmp(n.clave, *desde) > 0 {
+		if !a.iterarRangoRec(n.izquierdo, desde, hasta, visitar) {
 			return false
 		}
 	}
-
-	if (desde == nil || cmp(nodo.clave, *desde) >= 0) && (hasta == nil || cmp(nodo.clave, *hasta) <= 0) {
-		if !visitar(nodo.clave, nodo.dato) {
+	// Veo el nodo actual si esta en el rango
+	if (desde == nil || a.cmp(*desde, n.clave) <= 0) && (hasta == nil || a.cmp(n.clave, *hasta) <= 0) {
+		if !visitar(n.clave, n.dato) {
 			return false
 		}
 	}
-
-	if hasta == nil || cmp(nodo.clave, *hasta) <= 0 {
-		if !iterarRango(nodo.derecho, cmp, desde, hasta, visitar) {
+	// Recorro la der si no estoy en el limite sup
+	if hasta == nil || a.cmp(n.clave, *hasta) < 0 {
+		if !a.iterarRangoRec(n.derecho, desde, hasta, visitar) {
 			return false
 		}
 	}
-
 	return true
 }
 

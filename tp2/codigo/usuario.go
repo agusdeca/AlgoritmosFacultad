@@ -1,21 +1,21 @@
-package algogram
+package codigo
 
 import (
-	"tp2/tdas/cola_prioridad"
 	"math"
+	"tdas/cola_prioridad"
 )
 
 // entradaFeed guarda la info necesaria para priorizar posts en el feed
 type entradaFeed struct {
 	post      *post
-	prioridad int 
+	prioridad int
 	id_post   int
 }
 
 type usuario struct {
-	nombre    string
-	posicion  int 
-	feed      cola_prioridad.ColaPrioridad[entradaFeed]
+	nombre   string
+	posicion int
+	feed     cola_prioridad.ColaPrioridad[entradaFeed]
 }
 
 // Func de comparacion

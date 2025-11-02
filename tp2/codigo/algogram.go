@@ -1,7 +1,7 @@
-package algogram
+package codigo
 
 import (
-    "tp2/tdas/diccionario"
+	"tdas/diccionario"
 )
 
 type AlgoGram interface {
@@ -32,11 +32,11 @@ const CAPACIDAD_INICIAL_USUARIOS = 2
 // Crea la instancia de la implementación
 func NewAlgoGram() AlgoGram {
 	return &algogramImpl{
-		usuarios_hash:   diccionario.CrearHash[string, *usuario](func(a, b string) bool { return a == b }),
-		usuarios_lista:  make([]*usuario, CAPACIDAD_INICIAL_USUARIOS),
+		usuarios_hash:     diccionario.CrearHash[string, *usuario](func(a, b string) bool { return a == b }),
+		usuarios_lista:    make([]*usuario, CAPACIDAD_INICIAL_USUARIOS),
 		usuarios_cantidad: 0,
-		posts:           diccionario.CrearHash[int, *post](func(a, b int) bool { return a == b }),
-		usuario_loggeado: nil,
-		proximo_id_post: 0,
+		posts:             diccionario.CrearHash[int, *post](func(a, b int) bool { return a == b }),
+		usuario_loggeado:  nil,
+		proximo_id_post:   0,
 	}
 }

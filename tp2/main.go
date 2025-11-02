@@ -6,7 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"tp2/algogram"
+	"tp2/codigo"
 )
 
 func main() {
@@ -16,7 +16,7 @@ func main() {
 	}
 	rutaArchivo := os.Args[1]
 
-	sistema := algogram.NewAlgoGram()
+	sistema := codigo.NewAlgoGram()
 
 	//Cargar los usuarios iniciales
 	if err := sistema.CargarUsuarios(rutaArchivo); err != nil {
@@ -56,7 +56,7 @@ func main() {
 				continue
 			}
 			fmt.Println(sistema.MostrarLikes(id))
-		
+
 		}
 	}
 }
@@ -64,12 +64,12 @@ func main() {
 // Si no hay parámetro, devuelve parametro="".
 func parsearLinea(linea string) (string, string) {
 	partes := strings.SplitN(linea, " ", 2)
-	
+
 	comando := partes[0]
-	
+
 	if len(partes) == 1 {
 		return comando, "" // No hay parámetro
 	}
-	
+
 	return comando, partes[1] // Hay parámetro
 }

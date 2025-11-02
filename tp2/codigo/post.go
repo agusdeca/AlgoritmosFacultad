@@ -1,16 +1,15 @@
-package algogram
+package codigo
 
 import (
-	tdadict "tp2/tdas/diccionario"
 	"sort"
+	tdadict "tdas/diccionario"
 )
 
-
 type post struct {
-	id     int
-	autor  *usuario
-	texto  string
-	likes  tdadict.Diccionario[string, bool]
+	id    int
+	autor *usuario
+	texto string
+	likes tdadict.Diccionario[string, bool]
 }
 
 func nuevoPost(id int, autor *usuario, texto string) *post {

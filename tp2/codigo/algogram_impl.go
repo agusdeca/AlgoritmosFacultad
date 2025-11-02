@@ -1,4 +1,4 @@
-package algogram
+package codigo
 
 import (
 	"bufio"
@@ -6,23 +6,23 @@ import (
 	"math"
 	"os"
 	"strings"
-    "tp2/tdas/diccionario"
+	"tdas/diccionario"
 )
 
 type algogramImpl struct {
-	usuarios_hash  diccionario.Diccionario[string, *usuario]
+	usuarios_hash     diccionario.Diccionario[string, *usuario]
 	usuarios_lista    []*usuario
-	usuarios_cantidad int 
-	posts diccionario.Diccionario[int, *post]
-	usuario_loggeado *usuario
-	proximo_id_post int
+	usuarios_cantidad int
+	posts             diccionario.Diccionario[int, *post]
+	usuario_loggeado  *usuario
+	proximo_id_post   int
 }
 
 func CrearAlgogram() *algogramImpl {
 	return &algogramImpl{
-		usuarios_hash: diccionario.CrearHash[string, *usuario](func(a, b string) bool { return a == b }),
-		posts:         diccionario.CrearHash[int, *post](func(a, b int) bool { return a == b }),
-		usuarios_lista: make([]*usuario, 10), 
+		usuarios_hash:  diccionario.CrearHash[string, *usuario](func(a, b string) bool { return a == b }),
+		posts:          diccionario.CrearHash[int, *post](func(a, b int) bool { return a == b }),
+		usuarios_lista: make([]*usuario, 10),
 	}
 }
 
@@ -37,19 +37,19 @@ func (ag *algogramImpl) CargarUsuarios(ruta string) error {
 	nro_linea := 0
 	for scanner.Scan() {
 		nombre := scanner.Text()
-		nuevoUsuario := nuevoUsuario(nombre, nro_linea) 
-		
+		nuevoUsuario := nuevoUsuario(nombre, nro_linea)
+
 		if ag.usuarios_cantidad == cap(ag.usuarios_lista) {
-			
+
 			nuevaCapacidad := cap(ag.usuarios_lista) * 2
 			nuevoSlice := make([]*usuario, nuevaCapacidad)
 			copy(nuevoSlice, ag.usuarios_lista)
 			ag.usuarios_lista = nuevoSlice
 		}
-		
+
 		ag.usuarios_lista[ag.usuarios_cantidad] = nuevoUsuario
 		ag.usuarios_cantidad++
-		
+
 		ag.usuarios_hash.Guardar(nombre, nuevoUsuario)
 		nro_linea++
 	}
@@ -90,13 +90,13 @@ func (ag *algogramImpl) Publicar(texto string) string {
 
 	for i := 0; i < ag.usuarios_cantidad; i++ {
 		u := ag.usuarios_lista[i]
-		
+
 		if u == autor {
-			continue 
+			continue
 		}
-		
+
 		afinidad := int(math.Abs(float64(autor.posicion - u.posicion)))
-		
+
 		entradaFeed := entradaFeed{
 			post:      nuevoPost,
 			prioridad: afinidad,
@@ -145,7 +145,7 @@ func (ag *algogramImpl) MostrarLikes(id int) string {
 	nombres := post.obtenerUsuariosLikes()
 	var builder strings.Builder
 	builder.WriteString(fmt.Sprintf("El post tiene %d likes:\n", post.cantidadLikes()))
-	for _, nombre := range nombres { 
+	for _, nombre := range nombres {
 		builder.WriteString(fmt.Sprintf("\t%s\n", nombre))
 	}
 	return strings.TrimSuffix(builder.String(), "\n")
