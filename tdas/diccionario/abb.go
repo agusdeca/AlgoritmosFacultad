@@ -5,22 +5,22 @@ import (
 )
 
 // funcion de comparacion
-type funcCmp[K comparable] func(K, K) int
+type funcCmp[K any] func(K, K) int
 
-type nodoAbb[K comparable, V any] struct {
+type nodoAbb[K any, V any] struct {
 	izquierdo *nodoAbb[K, V]
 	derecho   *nodoAbb[K, V]
 	clave     K
 	dato      V
 }
 
-type abb[K comparable, V any] struct {
+type abb[K any, V any] struct {
 	raiz     *nodoAbb[K, V]
 	cantidad int
 	cmp      funcCmp[K]
 }
 
-type iterAbb[K comparable, V any] struct {
+type iterAbb[K any, V any] struct {
 	pila  TDAPila.Pila[*nodoAbb[K, V]]
 	cmp   func(K, K) int
 	desde *K
@@ -28,13 +28,13 @@ type iterAbb[K comparable, V any] struct {
 }
 
 // CrearABB crea un nuevo ABB vacío con la func de cmp
-func CrearABB[K comparable, V any](cmp func(K, K) int) DiccionarioOrdenado[K, V] {
+func CrearABB[K any, V any](cmp func(K, K) int) DiccionarioOrdenado[K, V] {
 	return &abb[K, V]{cmp: cmp}
 }
 
 // Guardar inserta o reemplaza una clave
 func (a *abb[K, V]) Guardar(clave K, dato V) {
-	padre, nodo := buscarNodo(a.raiz, clave, a.cmp)
+	padre, nodo := a.buscarNodo(a.raiz, clave)
 
 	if nodo != nil {
 		// Caso 1: La clave ya existe. Actualizamos el dato.
@@ -60,41 +60,42 @@ func (a *abb[K, V]) Guardar(clave K, dato V) {
 
 // Pertenece indica si una clave está en el ABB
 func (a *abb[K, V]) Pertenece(clave K) bool {
-	_, nodo := buscarNodo(a.raiz, clave, a.cmp)
+	_, nodo := a.buscarNodo(a.raiz, clave)
 	return nodo != nil
 }
 
 // Obtener devuelve el valor asociado a una clave
 func (a *abb[K, V]) Obtener(clave K) V {
-	_, nodo := buscarNodo(a.raiz, clave, a.cmp)
+	_, nodo := a.buscarNodo(a.raiz, clave)
 	if nodo == nil {
 		panic(MENSAJE_CLAVE_INEXIST)
 	}
 	return nodo.dato
 }
 
-func buscarNodo[K comparable, V any](raiz *nodoAbb[K, V], clave K, cmp funcCmp[K]) (padre *nodoAbb[K, V], nodo *nodoAbb[K, V]) {
-	padre = nil
-	nodo = raiz
+func (a *abb[K, V]) buscarNodo(nodo *nodoAbb[K, V], clave K) (padre *nodoAbb[K, V], encontrado *nodoAbb[K, V]) {
+	return a.buscarNodoAux(nil, nodo, clave)
+}
 
-	for nodo != nil {
-		comp := cmp(clave, nodo.clave)
-		if comp == 0 {
-			return padre, nodo
-		}
-		padre = nodo
-		if comp < 0 {
-			nodo = nodo.izquierdo
-		} else {
-			nodo = nodo.derecho
-		}
+func (a *abb[K, V]) buscarNodoAux(padre *nodoAbb[K, V], nodo *nodoAbb[K, V], clave K) (*nodoAbb[K, V], *nodoAbb[K, V]) {
+	if nodo == nil {
+		return padre, nil
 	}
-	return padre, nil
+
+	comp := a.cmp(clave, nodo.clave)
+	if comp == 0 {
+		return padre, nodo
+	}
+
+	if comp < 0 {
+		return a.buscarNodoAux(nodo, nodo.izquierdo, clave)
+	}
+	return a.buscarNodoAux(nodo, nodo.derecho, clave)
 }
 
 // Borrar elimina una clave del ABB y devuelve su valor
 func (a *abb[K, V]) Borrar(clave K) V {
-	padre, nodo := buscarNodo(a.raiz, clave, a.cmp)
+	padre, nodo := a.buscarNodo(a.raiz, clave)
 
 	if nodo == nil {
 		panic(MENSAJE_CLAVE_INEXIST)
@@ -105,22 +106,22 @@ func (a *abb[K, V]) Borrar(clave K) V {
 
 	if nodo.izquierdo == nil {
 		// Caso 1: 0 hijos o 1 hijo (derecho)
-		reemplazarHijo(a, padre, nodo, nodo.derecho)
+		a.reemplazarHijo(padre, nodo, nodo.derecho)
 	} else if nodo.derecho == nil {
 		// Caso 2: 1 hijo (izquierdo)
-		reemplazarHijo(a, padre, nodo, nodo.izquierdo)
+		a.reemplazarHijo(padre, nodo, nodo.izquierdo)
 	} else {
 		// Caso 3: 2 hijos
-		padreSucesor, sucesor := buscarMinimoConPadre(nodo.derecho, nodo)
+		padreSucesor, sucesor := a.buscarMinimoConPadre(nodo.derecho, nodo)
 
 		nodo.clave, nodo.dato = sucesor.clave, sucesor.dato
 
-		reemplazarHijo(a, padreSucesor, sucesor, sucesor.derecho)
+		a.reemplazarHijo(padreSucesor, sucesor, sucesor.derecho)
 	}
 	return dato
 }
 
-func reemplazarHijo[K comparable, V any](a *abb[K, V], padre *nodoAbb[K, V], nodo *nodoAbb[K, V], reemplazo *nodoAbb[K, V]) {
+func (a *abb[K, V]) reemplazarHijo(padre *nodoAbb[K, V], nodo *nodoAbb[K, V], reemplazo *nodoAbb[K, V]) {
 	if padre == nil {
 		// 'nodo' era la raiz
 		a.raiz = reemplazo
@@ -131,7 +132,7 @@ func reemplazarHijo[K comparable, V any](a *abb[K, V], padre *nodoAbb[K, V], nod
 	}
 }
 
-func buscarMinimoConPadre[K comparable, V any](nodo *nodoAbb[K, V], padre *nodoAbb[K, V]) (*nodoAbb[K, V], *nodoAbb[K, V]) {
+func (a *abb[K, V]) buscarMinimoConPadre(nodo *nodoAbb[K, V], padre *nodoAbb[K, V]) (*nodoAbb[K, V], *nodoAbb[K, V]) {
 	actual := nodo
 	for actual.izquierdo != nil {
 		padre = actual
@@ -147,33 +148,33 @@ func (a *abb[K, V]) Cantidad() int {
 
 // Iterador interno
 func (a *abb[K, V]) Iterar(visitar func(K, V) bool) {
-	iterarRango(a.raiz, a.cmp, nil, nil, visitar)
+	a.iterarRango(a.raiz, nil, nil, visitar)
 }
 
 func (a *abb[K, V]) IterarRango(desde, hasta *K, visitar func(K, V) bool) {
-	iterarRango(a.raiz, a.cmp, desde, hasta, visitar)
+	a.iterarRango(a.raiz, desde, hasta, visitar)
 }
 
 // Func aux que recorre el arbol recursivamente y ve solo las claves dentro del rango
-func iterarRango[K comparable, V any](nodo *nodoAbb[K, V], cmp funcCmp[K], desde, hasta *K, visitar func(K, V) bool) bool {
+func (a *abb[K, V]) iterarRango(nodo *nodoAbb[K, V], desde, hasta *K, visitar func(K, V) bool) bool {
 	if nodo == nil {
 		return true
 	}
 
-	if desde == nil || cmp(nodo.clave, *desde) >= 0 {
-		if !iterarRango(nodo.izquierdo, cmp, desde, hasta, visitar) {
+	if desde == nil || a.cmp(nodo.clave, *desde) >= 0 {
+		if !a.iterarRango(nodo.izquierdo, desde, hasta, visitar) {
 			return false
 		}
 	}
 
-	if (desde == nil || cmp(nodo.clave, *desde) >= 0) && (hasta == nil || cmp(nodo.clave, *hasta) <= 0) {
+	if (desde == nil || a.cmp(nodo.clave, *desde) >= 0) && (hasta == nil || a.cmp(nodo.clave, *hasta) <= 0) {
 		if !visitar(nodo.clave, nodo.dato) {
 			return false
 		}
 	}
 
-	if hasta == nil || cmp(nodo.clave, *hasta) <= 0 {
-		if !iterarRango(nodo.derecho, cmp, desde, hasta, visitar) {
+	if hasta == nil || a.cmp(nodo.clave, *hasta) <= 0 {
+		if !a.iterarRango(nodo.derecho, desde, hasta, visitar) {
 			return false
 		}
 	}
@@ -226,7 +227,7 @@ func (iter *iterAbb[K, V]) HaySiguiente() bool {
 
 func (iter *iterAbb[K, V]) VerActual() (K, V) {
 	if !iter.HaySiguiente() {
-		panic("El iterador termino de iterar")
+		panic(MENSAJE_ITER_TERMINADO)
 	}
 	nodo := iter.pila.VerTope()
 	return nodo.clave, nodo.dato
@@ -235,7 +236,7 @@ func (iter *iterAbb[K, V]) VerActual() (K, V) {
 // Siguiente avanza al siguiente elemento en el recorrido inorder
 func (iter *iterAbb[K, V]) Siguiente() {
 	if !iter.HaySiguiente() {
-		panic("El iterador termino de iterar")
+		panic(MENSAJE_ITER_TERMINADO)
 	}
 	nodo := iter.pila.Desapilar()
 
