@@ -7,20 +7,20 @@ import (
 // funcion de comparacion
 type funcCmp[K any] func(K, K) int
 
-type nodoAbb[K comparable, V any] struct {
+type nodoAbb[K any, V any] struct {
 	izquierdo *nodoAbb[K, V]
 	derecho   *nodoAbb[K, V]
 	clave     K
 	dato      V
 }
 
-type abb[K comparable, V any] struct {
+type abb[K any, V any] struct {
 	raiz     *nodoAbb[K, V]
 	cantidad int
 	cmp      funcCmp[K]
 }
 
-type iterAbb[K comparable, V any] struct {
+type iterAbb[K any, V any] struct {
 	pila  TDAPila.Pila[*nodoAbb[K, V]]
 	cmp   func(K, K) int
 	desde *K
@@ -28,118 +28,132 @@ type iterAbb[K comparable, V any] struct {
 }
 
 // CrearABB crea un nuevo ABB vacío con la func de cmp
-func CrearABB[K comparable, V any](cmp func(K, K) int) DiccionarioOrdenado[K, V] {
+func CrearABB[K any, V any](cmp func(K, K) int) DiccionarioOrdenado[K, V] {
 	return &abb[K, V]{cmp: cmp}
 }
 
 // Guardar inserta o reemplaza una clave
 func (a *abb[K, V]) Guardar(clave K, dato V) {
-	a.raiz = a.insertarRec(a.raiz, clave, dato)
-}
+	padre, nodo := a.buscarNodo(a.raiz, clave)
 
-// Insertar recursivamente en el arbol
-func (a *abb[K, V]) insertarRec(n *nodoAbb[K, V], clave K, dato V) *nodoAbb[K, V] {
-	if n == nil {
-		a.cantidad++
-		return &nodoAbb[K, V]{clave: clave, dato: dato}
+	if nodo != nil {
+		// Caso 1: La clave ya existe. Actualizamos el dato.
+		nodo.dato = dato
+		return
 	}
 
-	comp := a.cmp(clave, n.clave)
-	if comp == 0 {
-		n.dato = dato
-	} else if comp < 0 {
-		n.izquierdo = a.insertarRec(n.izquierdo, clave, dato)
+	// Caso 2: La clave no existe. Creamos un nuevo nodo.
+	nuevoNodo := &nodoAbb[K, V]{clave: clave, dato: dato}
+	a.cantidad++
+
+	if padre == nil {
+		a.raiz = nuevoNodo
 	} else {
-		n.derecho = a.insertarRec(n.derecho, clave, dato)
+		comp := a.cmp(clave, padre.clave)
+		if comp < 0 {
+			padre.izquierdo = nuevoNodo
+		} else {
+			padre.derecho = nuevoNodo
+		}
 	}
-	return n
 }
 
 // Pertenece indica si una clave está en el ABB
 func (a *abb[K, V]) Pertenece(clave K) bool {
-	return a.buscarRec(a.raiz, clave) != nil
+	_, nodo := a.buscarNodo(a.raiz, clave)
+	return nodo != nil
 }
 
 // Obtener devuelve el valor asociado a una clave
 func (a *abb[K, V]) Obtener(clave K) V {
-	nodo := a.buscarRec(a.raiz, clave)
+	_, nodo := a.buscarNodo(a.raiz, clave)
 	if nodo == nil {
 		panic(MENSAJE_CLAVE_INEXIST)
 	}
 	return nodo.dato
 }
 
-// Buscar recursivamente de una clave
-func (a *abb[K, V]) buscarRec(n *nodoAbb[K, V], clave K) *nodoAbb[K, V] {
-	if n == nil {
-		return nil
+func (a *abb[K, V]) buscarNodo(nodo *nodoAbb[K, V], clave K) (*nodoAbb[K, V], *nodoAbb[K, V]) {
+	var padre *nodoAbb[K, V]
+	actual := nodo
+
+	for actual != nil {
+		comp := a.cmp(clave, actual.clave)
+		if comp == 0 {
+			return padre, actual
+		}
+		padre = actual
+		if comp < 0 {
+			actual = actual.izquierdo
+		} else {
+			actual = actual.derecho
+		}
 	}
-	comp := a.cmp(clave, n.clave)
+	return padre, nil
+}
+
+func (a *abb[K, V]) buscarNodoAux(padre *nodoAbb[K, V], nodo *nodoAbb[K, V], clave K) (*nodoAbb[K, V], *nodoAbb[K, V]) {
+	if nodo == nil {
+		return padre, nil
+	}
+
+	comp := a.cmp(clave, nodo.clave)
 	if comp == 0 {
-		return n
+		return padre, nodo
 	}
+
 	if comp < 0 {
-		return a.buscarRec(n.izquierdo, clave)
+		return a.buscarNodoAux(nodo, nodo.izquierdo, clave)
 	}
-	return a.buscarRec(n.derecho, clave)
+	return a.buscarNodoAux(nodo, nodo.derecho, clave)
 }
 
 // Borrar elimina una clave del ABB y devuelve su valor
 func (a *abb[K, V]) Borrar(clave K) V {
-	nuevaRaiz, borrado, ok := a.borrarRec(a.raiz, clave)
-	if !ok {
+	padre, nodo := a.buscarNodo(a.raiz, clave)
+
+	if nodo == nil {
 		panic(MENSAJE_CLAVE_INEXIST)
 	}
-	a.raiz = nuevaRaiz
+
+	dato := nodo.dato
 	a.cantidad--
-	return borrado
+
+	if nodo.izquierdo == nil {
+		// Caso 1: 0 hijos o 1 hijo (derecho)
+		a.reemplazarHijo(padre, nodo, nodo.derecho)
+	} else if nodo.derecho == nil {
+		// Caso 2: 1 hijo (izquierdo)
+		a.reemplazarHijo(padre, nodo, nodo.izquierdo)
+	} else {
+		// Caso 3: 2 hijos
+		padreSucesor, sucesor := a.buscarMinimoConPadre(nodo.derecho, nodo)
+
+		nodo.clave, nodo.dato = sucesor.clave, sucesor.dato
+
+		a.reemplazarHijo(padreSucesor, sucesor, sucesor.derecho)
+	}
+	return dato
 }
 
-// Borro recursivo con los tres casos
-func (a *abb[K, V]) borrarRec(n *nodoAbb[K, V], clave K) (*nodoAbb[K, V], V, bool) {
-	if n == nil {
-		var cero V
-		return nil, cero, false
+func (a *abb[K, V]) reemplazarHijo(padre *nodoAbb[K, V], nodo *nodoAbb[K, V], reemplazo *nodoAbb[K, V]) {
+	if padre == nil {
+		// 'nodo' era la raiz
+		a.raiz = reemplazo
+	} else if padre.izquierdo == nodo {
+		padre.izquierdo = reemplazo
+	} else {
+		padre.derecho = reemplazo
 	}
-
-	comp := a.cmp(clave, n.clave)
-	if comp < 0 {
-		var borrado V
-		var ok bool
-		n.izquierdo, borrado, ok = a.borrarRec(n.izquierdo, clave)
-		return n, borrado, ok
-	}
-	if comp > 0 {
-		var borrado V
-		var ok bool
-		n.derecho, borrado, ok = a.borrarRec(n.derecho, clave)
-		return n, borrado, ok
-	}
-
-	// Caso base: encontramos la clave
-	borrado := n.dato
-	if n.izquierdo == nil && n.derecho == nil {
-		return nil, borrado, true
-	}
-	if n.izquierdo == nil {
-		return n.derecho, borrado, true
-	}
-	if n.derecho == nil {
-		return n.izquierdo, borrado, true
-	}
-
-	min := a.minimo(n.derecho)
-	n.clave, n.dato = min.clave, min.dato
-	n.derecho, _, _ = a.borrarRec(n.derecho, min.clave)
-	return n, borrado, true
 }
 
-// Devuelve el nodo con la clave min del subarbol
-func (a *abb[K, V]) minimo(n *nodoAbb[K, V]) *nodoAbb[K, V] {
-	if n.izquierdo == nil {
-		return n
+func (a *abb[K, V]) buscarMinimoConPadre(nodo *nodoAbb[K, V], padre *nodoAbb[K, V]) (*nodoAbb[K, V], *nodoAbb[K, V]) {
+	actual := nodo
+	for actual.izquierdo != nil {
+		padre = actual
+		actual = actual.izquierdo
 	}
-	return a.minimo(n.izquierdo)
+	return padre, actual
 }
 
 // Cantidad devuelve el num de elem
@@ -149,33 +163,30 @@ func (a *abb[K, V]) Cantidad() int {
 
 // Iterador interno
 func (a *abb[K, V]) Iterar(visitar func(K, V) bool) {
-	a.IterarRango(nil, nil, visitar)
+	iterarRango(a.raiz, a.cmp, nil, nil, visitar)
 }
 
 func (a *abb[K, V]) IterarRango(desde, hasta *K, visitar func(K, V) bool) {
-	a.iterarRangoRec(a.raiz, desde, hasta, visitar)
+	iterarRango(a.raiz, a.cmp, desde, hasta, visitar)
 }
 
-// Recorre el arbol recursivamente y mira solo las claves dentro del rango
-func (a *abb[K, V]) iterarRangoRec(n *nodoAbb[K, V], desde, hasta *K, visitar func(K, V) bool) bool {
-	if n == nil {
+// Func aux que recorre el arbol recursivamente y ve solo las claves dentro del rango
+func iterarRango[K any, V any](nodo *nodoAbb[K, V], cmp funcCmp[K], desde, hasta *K, visitar func(K, V) bool) bool {
+	if nodo == nil {
 		return true
 	}
-	// Recorro izq si estoy en el rango inf
-	if desde == nil || a.cmp(n.clave, *desde) > 0 {
-		if !a.iterarRangoRec(n.izquierdo, desde, hasta, visitar) {
+	if desde == nil || cmp(nodo.clave, *desde) >= 0 {
+		if !iterarRango(nodo.izquierdo, cmp, desde, hasta, visitar) {
 			return false
 		}
 	}
-	// Veo el nodo actual si esta en el rango
-	if (desde == nil || a.cmp(*desde, n.clave) <= 0) && (hasta == nil || a.cmp(n.clave, *hasta) <= 0) {
-		if !visitar(n.clave, n.dato) {
+	if (desde == nil || cmp(nodo.clave, *desde) >= 0) && (hasta == nil || cmp(nodo.clave, *hasta) <= 0) {
+		if !visitar(nodo.clave, nodo.dato) {
 			return false
 		}
 	}
-	// Recorro la der si no estoy en el limite sup
-	if hasta == nil || a.cmp(n.clave, *hasta) < 0 {
-		if !a.iterarRangoRec(n.derecho, desde, hasta, visitar) {
+	if hasta == nil || cmp(nodo.clave, *hasta) <= 0 {
+		if !iterarRango(nodo.derecho, cmp, desde, hasta, visitar) {
 			return false
 		}
 	}
@@ -183,17 +194,14 @@ func (a *abb[K, V]) iterarRangoRec(n *nodoAbb[K, V], desde, hasta *K, visitar fu
 }
 
 // Iterador externo
-
 func (a *abb[K, V]) Iterador() IterDiccionario[K, V] {
 	return a.IteradorRango(nil, nil)
 }
-
 func (a *abb[K, V]) IteradorRango(desde, hasta *K) IterDiccionario[K, V] {
 	iter := &iterAbb[K, V]{pila: TDAPila.CrearPilaDinamica[*nodoAbb[K, V]](), cmp: a.cmp, desde: desde, hasta: hasta}
 	iter.apilarIzquierdos(a.raiz, desde)
 	return iter
 }
-
 func (iter *iterAbb[K, V]) apilarIzquierdos(nodo *nodoAbb[K, V], desde *K) {
 	if desde == nil {
 		for nodo != nil {
@@ -202,7 +210,6 @@ func (iter *iterAbb[K, V]) apilarIzquierdos(nodo *nodoAbb[K, V], desde *K) {
 		}
 		return
 	}
-
 	for nodo != nil {
 		comp := iter.cmp(nodo.clave, *desde)
 		if comp >= 0 {
@@ -213,7 +220,6 @@ func (iter *iterAbb[K, V]) apilarIzquierdos(nodo *nodoAbb[K, V], desde *K) {
 		}
 	}
 }
-
 func (iter *iterAbb[K, V]) HaySiguiente() bool {
 	if iter.pila.EstaVacia() {
 		return false
@@ -224,7 +230,6 @@ func (iter *iterAbb[K, V]) HaySiguiente() bool {
 	}
 	return true
 }
-
 func (iter *iterAbb[K, V]) VerActual() (K, V) {
 	if !iter.HaySiguiente() {
 		panic("El iterador termino de iterar")
@@ -236,11 +241,10 @@ func (iter *iterAbb[K, V]) VerActual() (K, V) {
 // Siguiente avanza al siguiente elemento en el recorrido inorder
 func (iter *iterAbb[K, V]) Siguiente() {
 	if !iter.HaySiguiente() {
-		panic("El iterador termino de iterar")
+		panic(MENSAJE_ITER_TERMINADO)
 	}
 	nodo := iter.pila.Desapilar()
-
 	if nodo.derecho != nil {
-		iter.apilarIzquierdos(nodo.derecho, nil)
+		iter.apilarIzquierdos(nodo.derecho, iter.desde)
 	}
 }
