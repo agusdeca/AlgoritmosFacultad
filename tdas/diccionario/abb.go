@@ -34,7 +34,7 @@ func CrearABB[K any, V any](cmp func(K, K) int) DiccionarioOrdenado[K, V] {
 
 // Guardar inserta o reemplaza una clave
 func (a *abb[K, V]) Guardar(clave K, dato V) {
-	padre, nodo := a.buscarNodo(a.raiz, clave)
+	padre, nodo := a.buscarNodo(clave)
 
 	if nodo != nil {
 		// Caso 1: La clave ya existe. Actualizamos el dato.
@@ -60,22 +60,22 @@ func (a *abb[K, V]) Guardar(clave K, dato V) {
 
 // Pertenece indica si una clave está en el ABB
 func (a *abb[K, V]) Pertenece(clave K) bool {
-	_, nodo := a.buscarNodo(a.raiz, clave)
+	_, nodo := a.buscarNodo(clave)
 	return nodo != nil
 }
 
 // Obtener devuelve el valor asociado a una clave
 func (a *abb[K, V]) Obtener(clave K) V {
-	_, nodo := a.buscarNodo(a.raiz, clave)
+	_, nodo := a.buscarNodo(clave)
 	if nodo == nil {
 		panic(MENSAJE_CLAVE_INEXIST)
 	}
 	return nodo.dato
 }
 
-func (a *abb[K, V]) buscarNodo(nodo *nodoAbb[K, V], clave K) (*nodoAbb[K, V], *nodoAbb[K, V]) {
+func (a *abb[K, V]) buscarNodo(clave K) (*nodoAbb[K, V], *nodoAbb[K, V]) {
 	var padre *nodoAbb[K, V]
-	actual := nodo
+	actual := a.raiz
 
 	for actual != nil {
 		comp := a.cmp(clave, actual.clave)
@@ -92,25 +92,9 @@ func (a *abb[K, V]) buscarNodo(nodo *nodoAbb[K, V], clave K) (*nodoAbb[K, V], *n
 	return padre, nil
 }
 
-func (a *abb[K, V]) buscarNodoAux(padre *nodoAbb[K, V], nodo *nodoAbb[K, V], clave K) (*nodoAbb[K, V], *nodoAbb[K, V]) {
-	if nodo == nil {
-		return padre, nil
-	}
-
-	comp := a.cmp(clave, nodo.clave)
-	if comp == 0 {
-		return padre, nodo
-	}
-
-	if comp < 0 {
-		return a.buscarNodoAux(nodo, nodo.izquierdo, clave)
-	}
-	return a.buscarNodoAux(nodo, nodo.derecho, clave)
-}
-
 // Borrar elimina una clave del ABB y devuelve su valor
 func (a *abb[K, V]) Borrar(clave K) V {
-	padre, nodo := a.buscarNodo(a.raiz, clave)
+	padre, nodo := a.buscarNodo(clave)
 
 	if nodo == nil {
 		panic(MENSAJE_CLAVE_INEXIST)
