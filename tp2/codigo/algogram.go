@@ -4,6 +4,18 @@ import (
 	"tdas/diccionario"
 )
 
+const (
+	MSJ_HOLA              = "Hola %s"
+	MSJ_ADIOS             = "Adios"
+	ERR_NO_LOGGEADO       = "Error: no habia usuario loggeado"
+	ERR_USUARIO_NO_EXISTE = "Error: usuario no existente"
+	ERR_USUARIO_EXISTE    = "Error: Ya habia un usuario loggeado"
+	ERR_POST_INEXISTENTE  = "Error: Usuario no loggeado o Post inexistente"
+	ERR_LOGUEADO_POST     = "Usuario no loggeado o no hay mas posts para ver"
+	ERR_SIN_LIKES         = "Error: Post inexistente o sin likes"
+	MSJ_POST_PUBLICADO    = "Post publicado"
+)
+
 type AlgoGram interface {
 	// CargarUsuarios lee el archivo
 	CargarUsuarios(ruta string) error
@@ -27,16 +39,11 @@ type AlgoGram interface {
 	MostrarLikes(id int) string
 }
 
-const CAPACIDAD_INICIAL_USUARIOS = 2
-
 // Crea la instancia de la implementación
 func NewAlgoGram() AlgoGram {
 	return &algogramImpl{
-		usuarios_hash:     diccionario.CrearHash[string, *usuario](func(a, b string) bool { return a == b }),
-		usuarios_lista:    make([]*usuario, CAPACIDAD_INICIAL_USUARIOS),
-		usuarios_cantidad: 0,
-		posts:             diccionario.CrearHash[int, *post](func(a, b int) bool { return a == b }),
-		usuario_loggeado:  nil,
-		proximo_id_post:   0,
+		usuarios_hash:  diccionario.CrearHash[string, *usuario](func(a, b string) bool { return a == b }),
+		usuarios_lista: []*usuario{},
+		posts:          diccionario.CrearHash[int, *post](func(a, b int) bool { return a == b }),
 	}
 }

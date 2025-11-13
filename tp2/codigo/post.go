@@ -1,7 +1,8 @@
 package codigo
 
 import (
-	"sort"
+	"fmt"
+	"strings"
 	tdadict "tdas/diccionario"
 )
 
@@ -36,10 +37,22 @@ func (p *post) cantidadLikes() int {
 // obtenerUsuariosLikes devuelve una lista de nombres por orden alfabetico
 func (p *post) obtenerUsuariosLikes() []string {
 	nombres := make([]string, 0, p.likes.Cantidad())
-	p.likes.Iterar(func(clave string, _ bool) bool {
-		nombres = append(nombres, clave)
+	likes := tdadict.CrearABB[string, bool](strings.Compare)
+	p.likes.Iterar(func(clave string, valor bool) bool {
+		likes.Guardar(clave, valor)
 		return true
 	})
-	sort.Strings(nombres)
+	iter := likes.Iterador()
+	for iter.HaySiguiente() {
+		nombre, _ := iter.VerActual()
+		nombres = append(nombres, nombre)
+		iter.Siguiente()
+	}
 	return nombres
+}
+
+// Imprimir
+func (p *post) String() string {
+	return fmt.Sprintf("Post ID %d\n%s dijo: %s\nLikes: %d",
+		p.id, p.autor.nombre, p.texto, p.cantidadLikes())
 }

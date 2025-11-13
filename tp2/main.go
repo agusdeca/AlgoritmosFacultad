@@ -44,7 +44,7 @@ func main() {
 		case "likear_post":
 			id, err := strconv.Atoi(parametro)
 			if err != nil {
-				fmt.Println("Error: Usuario no loggeado o Post inexistente")
+				fmt.Println(codigo.ERR_POST_INEXISTENTE)
 				continue
 			}
 			fmt.Println(sistema.LikearPost(id))
@@ -52,7 +52,7 @@ func main() {
 		case "mostrar_likes":
 			id, err := strconv.Atoi(parametro)
 			if err != nil {
-				fmt.Println("Error: Post inexistente o sin likes")
+				fmt.Println(codigo.ERR_SIN_LIKES)
 				continue
 			}
 			fmt.Println(sistema.MostrarLikes(id))
