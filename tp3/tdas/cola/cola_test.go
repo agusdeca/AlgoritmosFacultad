@@ -1,9 +1,10 @@
 package cola_test
 
 import (
-	"github.com/stretchr/testify/require"
-	TDACola "tdas/cola"
 	"testing"
+	TDACola "tp3/tdas/cola"
+
+	"github.com/stretchr/testify/require"
 )
 
 const (
