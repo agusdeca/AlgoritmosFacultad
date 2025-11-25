@@ -2,7 +2,6 @@ package grafo
 
 import (
 	"tp3/tdas/diccionario"
-	"tp3/tdas/lista"
 )
 
 // grafoNoPesado implementa un grafo sin pesos usando diccionario de listas
@@ -29,14 +28,17 @@ type grafoPesado[T comparable, P any] struct {
 func CrearGrafoNoPesado[T comparable](dirigido bool) GrafoNoPesado[T] {
 	return &grafoNoPesado[T]{
 		dirigido:   dirigido,
-		vertices:   diccionario.CrearHash[T, bool](),
-		adyacencia: diccionario.CrearHash[T, diccionario.Diccionario[T, bool]](),
+		vertices:   diccionario.CrearHash[T, bool](func(a, b T) bool { return a == b }),
+		adyacencia: diccionario.CrearHash[T, diccionario.Diccionario[T, bool]](func(a, b T) bool { return a == b }),
 	}
 }
 
 // CrearGrafoPesado crea un nuevo grafo pesado
 func CrearGrafoPesado[T comparable, P any](dirigido bool) GrafoPesado[T, P] {
-	return &grafoPesado[T, P]{dirigido:dirigido, vertices:diccionario.CrearHash[T, bool](), adyacencia: diccionario.CrearHash[T, diccionario.Diccionario[T, P]](),
+	return &grafoPesado[T, P]{
+		dirigido:   dirigido,
+		vertices:   diccionario.CrearHash[T, bool](func(a, b T) bool { return a == b }),
+		adyacencia: diccionario.CrearHash[T, diccionario.Diccionario[T, P]](func(a, b T) bool { return a == b }),
 	}
 }
 
@@ -46,11 +48,15 @@ func (g *grafoNoPesado[T]) EsDirigido() bool {
 	return g.dirigido
 }
 
-func (g *grafoNoPesado[T]) AgregarVertice(vertice T) {
-	if !g.Existe(vertice) {
-		g.vertices.Guardar(vertice, true)
-		g.adyacencia.Guardar(vertice, diccionario.CrearHash[T, bool]())
+func (g *grafoNoPesado[T]) AgregarVertice(v T) {
+	if g.vertices.Pertenece(v) {
+		return
 	}
+	g.vertices.Guardar(v, true)
+
+	g.adyacencia.Guardar(v,
+		diccionario.CrearHash[T, bool](func(a, b T) bool { return a == b }),
+	)
 }
 
 func (g *grafoNoPesado[T]) BorrarVertice(vertice T) {
@@ -74,7 +80,6 @@ func (g *grafoNoPesado[T]) BorrarVertice(vertice T) {
 	g.adyacencia.Borrar(vertice)
 }
 
-
 func (g *grafoNoPesado[T]) AgregarArista(v1 T, v2 T) {
 	if !g.Existe(v1) {
 		g.AgregarVertice(v1)
@@ -83,10 +88,16 @@ func (g *grafoNoPesado[T]) AgregarArista(v1 T, v2 T) {
 		g.AgregarVertice(v2)
 	}
 
+	if !g.adyacencia.Pertenece(v1) {
+		g.adyacencia.Guardar(v1, diccionario.CrearHash[T, bool](func(a, b T) bool { return a == b }))
+	}
 	adyacentes := g.adyacencia.Obtener(v1)
 	adyacentes.Guardar(v2, true)
 
 	if !g.dirigido {
+		if !g.adyacencia.Pertenece(v2) {
+			g.adyacencia.Guardar(v2, diccionario.CrearHash[T, bool](func(a, b T) bool { return a == b }))
+		}
 		adyacentes2 := g.adyacencia.Obtener(v2)
 		adyacentes2.Guardar(v1, true)
 	}
@@ -159,11 +170,15 @@ func (g *grafoPesado[T, P]) EsDirigido() bool {
 	return g.dirigido
 }
 
-func (g *grafoPesado[T, P]) AgregarVertice(vertice T) {
-	if !g.Existe(vertice) {
-		g.vertices.Guardar(vertice, true)
-		g.adyacencia.Guardar(vertice, diccionario.CrearHash[T, P]())
+func (g *grafoPesado[T, P]) AgregarVertice(v T) {
+	if g.vertices.Pertenece(v) {
+		return
 	}
+	g.vertices.Guardar(v, true)
+
+	g.adyacencia.Guardar(v,
+		diccionario.CrearHash[T, P](func(a, b T) bool { return a == b }),
+	)
 }
 
 func (g *grafoPesado[T, P]) BorrarVertice(vertice T) {
@@ -277,4 +292,3 @@ func (g *grafoPesado[T, P]) VerPeso(v1, v2 T) P {
 	}
 	return adyacentes.Obtener(v2)
 }
-
