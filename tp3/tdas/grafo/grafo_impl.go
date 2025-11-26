@@ -49,14 +49,11 @@ func (g *grafoNoPesado[T]) EsDirigido() bool {
 }
 
 func (g *grafoNoPesado[T]) AgregarVertice(v T) {
-	if g.vertices.Pertenece(v) {
-		return
-	}
 	g.vertices.Guardar(v, true)
 
-	g.adyacencia.Guardar(v,
-		diccionario.CrearHash[T, bool](func(a, b T) bool { return a == b }),
-	)
+	if !g.adyacencia.Pertenece(v) {
+		g.adyacencia.Guardar(v, diccionario.CrearHash[T, bool](func(a, b T) bool { return a == b }))
+	}
 }
 
 func (g *grafoNoPesado[T]) BorrarVertice(vertice T) {
@@ -88,16 +85,13 @@ func (g *grafoNoPesado[T]) AgregarArista(v1 T, v2 T) {
 		g.AgregarVertice(v2)
 	}
 
-	if !g.adyacencia.Pertenece(v1) {
-		g.adyacencia.Guardar(v1, diccionario.CrearHash[T, bool](func(a, b T) bool { return a == b }))
-	}
 	adyacentes := g.adyacencia.Obtener(v1)
 	adyacentes.Guardar(v2, true)
 
 	if !g.dirigido {
 		if !g.adyacencia.Pertenece(v2) {
-			g.adyacencia.Guardar(v2, diccionario.CrearHash[T, bool](func(a, b T) bool { return a == b }))
-		}
+             g.adyacencia.Guardar(v2, diccionario.CrearHash[T, bool](func(a, b T) bool { return a == b }))
+        }
 		adyacentes2 := g.adyacencia.Obtener(v2)
 		adyacentes2.Guardar(v1, true)
 	}
@@ -164,29 +158,26 @@ func (g *grafoNoPesado[T]) Adyacentes(v T) []T {
 	return resultado
 }
 
-// Grafo Pesado
+// Grafo Pesado (Misma logica de optimizacion en AgregarArista/Vertice)
 
 func (g *grafoPesado[T, P]) EsDirigido() bool {
 	return g.dirigido
 }
 
 func (g *grafoPesado[T, P]) AgregarVertice(v T) {
-	if g.vertices.Pertenece(v) {
-		return
-	}
 	g.vertices.Guardar(v, true)
-
-	g.adyacencia.Guardar(v,
-		diccionario.CrearHash[T, P](func(a, b T) bool { return a == b }),
-	)
+    
+	if !g.adyacencia.Pertenece(v) {
+        g.adyacencia.Guardar(v,
+            diccionario.CrearHash[T, P](func(a, b T) bool { return a == b }),
+        )
+    }
 }
 
 func (g *grafoPesado[T, P]) BorrarVertice(vertice T) {
 	if !g.Existe(vertice) {
 		return
 	}
-
-	//Elimino todas las aristas que lleguen al vertice que va a ser borrado
 	iter := g.vertices.Iterador()
 	for iter.HaySiguiente() {
 		v, _ := iter.VerActual()
@@ -196,19 +187,13 @@ func (g *grafoPesado[T, P]) BorrarVertice(vertice T) {
 		}
 		iter.Siguiente()
 	}
-
-	//Ahora si lo elimino
 	g.vertices.Borrar(vertice)
 	g.adyacencia.Borrar(vertice)
 }
 
 func (g *grafoPesado[T, P]) AgregarArista(v1 T, v2 T, peso P) {
-	if !g.Existe(v1) {
-		g.AgregarVertice(v1)
-	}
-	if !g.Existe(v2) {
-		g.AgregarVertice(v2)
-	}
+    if !g.vertices.Pertenece(v1) { g.AgregarVertice(v1) }
+    if !g.vertices.Pertenece(v2) { g.AgregarVertice(v2) }
 
 	adyacentes := g.adyacencia.Obtener(v1)
 	adyacentes.Guardar(v2, peso)

@@ -5,6 +5,8 @@ import (
 	"tp3/tdas/cola"
 	"tp3/tdas/diccionario"
 	"tp3/tdas/grafo"
+	"fmt"
+	"os"
 )
 
 const (
@@ -19,7 +21,6 @@ type ParPR struct {
 }
 
 // CaminoMinimo busca la forma mas rapida para llegar entre origen y destino con un bfs
-
 func CaminoMinimo[T comparable](g grafo.Grafo[T], origen, destino T) ([]T, int) {
 	if !g.Existe(origen) || !g.Existe(destino) {
 		return nil, -1
@@ -85,7 +86,6 @@ func reconstruirCamino[T comparable](padres diccionario.Diccionario[T, T], orige
 }
 
 // EnRango cuenta la cantidad de vertices que están a exactamente n aristas
-
 func EnRango[T comparable](g grafo.Grafo[T], origen T, n int) int {
 	if !g.Existe(origen) {
 		return 0
@@ -134,7 +134,6 @@ func EnRango[T comparable](g grafo.Grafo[T], origen T, n int) int {
 }
 
 // Navegacion navega desde el origen siguiendo siempre el primer link
-
 func Navegacion[T comparable](g grafo.Grafo[T], origen T) []T {
 	if !g.Existe(origen) {
 		return []T{}
@@ -171,8 +170,14 @@ func Diametro[T comparable](g grafo.Grafo[T]) ([]T, int) {
 	var origenMax, destinoMax T
 	hayCamino := false
 
-	// itero todos los vertices hasta encontrar el mayor diametro
-	for _, origen := range vertices {
+	total := len(vertices)
+	
+	for i, origen := range vertices {
+		
+		if i%100 == 0 {
+			fmt.Fprintf(os.Stderr, "Calculando Diámetro: %d/%d (Max actual: %d)...\r", i, total, maxDistanciaGlobal)
+		}
+
 		distancia, destino := bfsMasLejano(g, origen)
 
 		if distancia > maxDistanciaGlobal {
@@ -182,6 +187,8 @@ func Diametro[T comparable](g grafo.Grafo[T]) ([]T, int) {
 			hayCamino = true
 		}
 	}
+
+	fmt.Fprintf(os.Stderr, "\nCálculo de Diámetro finalizado.\n")
 
 	if !hayCamino {
 		return nil, 0
@@ -210,6 +217,7 @@ func bfsMasLejano[T comparable](g grafo.Grafo[T], origen T) (int, T) {
 	for !q.EstaVacia() {
 		actual := q.Desencolar()
 		distActual := distancias.Obtener(actual)
+		
 		if distActual > maxDist {
 			maxDist = distActual
 			ultimoNodo = actual

@@ -1,20 +1,25 @@
 package diccionario
 
-import "fmt"
+import (
+	"fmt"
+)
+
+const (
+	CAPACIDAD_INICIAL      = 127
+	FACTOR_CARGA_MAX       = 0.7
+	FACTOR_CARGA_MIN       = 0.2
+	FACTOR_REDIMENSION     = 2
+	CAPACIDAD_MINIMA       = 127
+	MENSAJE_CLAVE_INEXIST  = "La clave no pertenece al diccionario"
+	MENSAJE_ITER_TERMINADO = "El iterador termino de iterar"
+)
 
 type estadoCelda int
 
 const (
-	CAPACIDAD_INICIAL                  = 17
-	FACTOR_CARGA_MAX                   = 0.7
-	FACTOR_CARGA_MIN                   = 0.2
-	FACTOR_REDIMENSION                 = 2
-	CAPACIDAD_MINIMA                   = 17
-	MENSAJE_CLAVE_INEXIST              = "La clave no pertenece al diccionario"
-	MENSAJE_ITER_TERMINADO             = "El iterador termino de iterar"
-	VACIO                  estadoCelda = iota
-	OCUPADO
-	BORRADO
+	VACIO   estadoCelda = iota // VACIO = 0
+	OCUPADO                    // OCUPADO = 1
+	BORRADO                    // BORRADO = 2
 )
 
 type celda[K any, V any] struct {
@@ -36,71 +41,31 @@ type iterHash[K any, V any] struct {
 	posicion int
 }
 
-func convertirABytes[K any](clave K) []byte {
-	return []byte(fmt.Sprintf("%v", clave))
-}
-
-// MurmurHash3 (32-bit)
+// FNV-1a Hash (Optimizado)
 func funcionHash[K any](clave K, capacidad int) int {
-	bytes := convertirABytes(clave)
+	const offset64 = 14695981039346656037
+	const prime64 = 1099511628211
 
-	const (
-		c1 uint32 = 0xcc9e2d51
-		c2 uint32 = 0x1b873593
-		r1 uint32 = 15
-		r2 uint32 = 13
-		m  uint32 = 5
-		n  uint32 = 0xe6546b64
-	)
+	var hash uint64 = offset64
 
-	seed := uint32(0)
-	hash := seed
-	length := len(bytes)
-
-	nblocks := length / 4
-	for i := 0; i < nblocks; i++ {
-		k := uint32(bytes[i*4]) | uint32(bytes[i*4+1])<<8 |
-			uint32(bytes[i*4+2])<<16 | uint32(bytes[i*4+3])<<24
-
-		k *= c1
-		k = (k << r1) | (k >> (32 - r1))
-		k *= c2
-
-		hash ^= k
-		hash = (hash << r2) | (hash >> (32 - r2))
-		hash = hash*m + n
+	if s, ok := any(clave).(string); ok {
+		for i := 0; i < len(s); i++ {
+			hash ^= uint64(s[i])
+			hash *= prime64
+		}
+	} else {
+		s := fmt.Sprintf("%v", clave)
+		for i := 0; i < len(s); i++ {
+			hash ^= uint64(s[i])
+			hash *= prime64
+		}
 	}
 
-	tail := bytes[nblocks*4:]
-	var k1 uint32
-	switch len(tail) {
-	case 3:
-		k1 ^= uint32(tail[2]) << 16
-		fallthrough
-	case 2:
-		k1 ^= uint32(tail[1]) << 8
-		fallthrough
-	case 1:
-		k1 ^= uint32(tail[0])
-		k1 *= c1
-		k1 = (k1 << r1) | (k1 >> (32 - r1))
-		k1 *= c2
-		hash ^= k1
+	idx := int(hash % uint64(capacidad))
+	if idx < 0 {
+		idx += capacidad
 	}
-
-	hash ^= uint32(length)
-	hash ^= hash >> 16
-	hash *= 0x85ebca6b
-	hash ^= hash >> 13
-	hash *= 0xc2b2ae35
-	hash ^= hash >> 16
-
-	// Aseguramos que el resultado sea no negativo
-	resultado := int(hash) % capacidad
-	if resultado < 0 {
-		resultado += capacidad
-	}
-	return resultado
+	return idx
 }
 
 func (h *hashCerrado[K, V]) crearTabla(capacidad int) {
@@ -131,6 +96,7 @@ func (h *hashCerrado[K, V]) debeAchicar() bool {
 func (h *hashCerrado[K, V]) redimensionar(nuevaCapacidad int) {
 	tablaVieja := h.tabla
 	h.crearTabla(nuevaCapacidad)
+
 	for _, c := range tablaVieja {
 		if c.estado == OCUPADO {
 			h.Guardar(c.clave, c.valor)
@@ -167,8 +133,12 @@ func (h *hashCerrado[K, V]) buscarParaInsertar(clave K) (int, bool) {
 			primerBorrado = pos
 		}
 		pos = (pos + 1) % h.capacidad
+		
 		if pos == inicio {
-			break
+			if primerBorrado != -1 {
+				return primerBorrado, false
+			}
+			return -1, false 
 		}
 	}
 
@@ -184,6 +154,12 @@ func (h *hashCerrado[K, V]) Guardar(clave K, valor V) {
 	}
 
 	pos, existe := h.buscarParaInsertar(clave)
+
+	// SAFETY CHECK: Recuperación si la tabla estaba llena
+	if pos == -1 {
+		h.redimensionar(h.capacidad * FACTOR_REDIMENSION)
+		pos, existe = h.buscarParaInsertar(clave)
+	}
 
 	if existe {
 		h.tabla[pos].valor = valor
@@ -239,7 +215,6 @@ func (h *hashCerrado[K, V]) Cantidad() int {
 	return h.cantidad
 }
 
-// Iterador interno
 func (h *hashCerrado[K, V]) Iterar(visitar func(clave K, dato V) bool) {
 	for _, c := range h.tabla {
 		if c.estado == OCUPADO {
@@ -250,7 +225,6 @@ func (h *hashCerrado[K, V]) Iterar(visitar func(clave K, dato V) bool) {
 	}
 }
 
-// Iterador externo
 func (h *hashCerrado[K, V]) Iterador() IterDiccionario[K, V] {
 	iter := &iterHash[K, V]{hash: h, posicion: -1}
 	iter.avanzar()
