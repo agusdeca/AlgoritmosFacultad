@@ -11,7 +11,19 @@ import (
 	"tp3/tdas/grafo"
 )
 
-const MAX_CAPACITY = 10 * 1024 * 1024
+const (
+	MAX_CAPACITY = 10 * 1024 * 1024
+	ERR_FALTAN_PARAMETROS      = "Error: faltan parámetros"
+	ERR_FORMATO_INCORRECTO     = "Error: formato incorrecto"
+	ERR_FALTA_N                = "Error: falta el parámetro n"
+	ERR_PARAMETRO_NO_NUMERO    = "Error: parámetro debe ser un número"
+	ERR_FALTA_PAGINA           = "Error: falta la página"
+	ERR_N_NO_NUMERO            = "Error: n debe ser un número"
+	ERR_FALTAN_PAGINAS         = "Error: faltan páginas"
+	ERR_NO_RECORRIDO           = "No se encontro recorrido"
+	ERR_NO_FORMA_ORDEN         = "No existe forma de leer las paginas en orden"
+	ERR_NO_HAY_CAMINO          = "No hay camino"
+)
 
 func cargarGrafo(archivo string) (grafo.GrafoNoPesado[string], error) {
 	file, err := os.Open(archivo)
@@ -102,12 +114,12 @@ func procesarComando(g grafo.GrafoNoPesado[string], comando string) {
 
 	case "camino":
 		if len(partes) < 2 {
-			fmt.Println("Error: faltan parámetros")
+			fmt.Println(ERR_FALTAN_PARAMETROS)
 			return
 		}
 		params := strings.Split(partes[1], ",")
 		if len(params) != 2 {
-			fmt.Println("Error: formato incorrecto")
+			fmt.Println(ERR_FORMATO_INCORRECTO)
 			return
 		}
 		origen := strings.TrimSpace(params[0])
@@ -115,7 +127,7 @@ func procesarComando(g grafo.GrafoNoPesado[string], comando string) {
 
 		camino, costo := tp3.CaminoMinimo(g, origen, destino)
 		if camino == nil {
-			fmt.Println("No se encontro recorrido")
+			fmt.Println(ERR_NO_RECORRIDO)
 		} else {
 			fmt.Println(strings.Join(camino, " -> "))
 			fmt.Printf("Costo: %d\n", costo)
@@ -123,12 +135,12 @@ func procesarComando(g grafo.GrafoNoPesado[string], comando string) {
 
 	case "mas_importantes":
 		if len(partes) < 2 {
-			fmt.Println("Error: falta el parámetro n")
+			fmt.Println(ERR_FALTA_N)
 			return
 		}
 		n, err := strconv.Atoi(strings.TrimSpace(partes[1]))
 		if err != nil {
-			fmt.Println("Error: parámetro debe ser un número")
+			fmt.Println(ERR_PARAMETRO_NO_NUMERO)
 			return
 		}
 
@@ -137,7 +149,7 @@ func procesarComando(g grafo.GrafoNoPesado[string], comando string) {
 
 	case "conectados":
 		if len(partes) < 2 {
-			fmt.Println("Error: falta la página")
+			fmt.Println(ERR_FALTA_PAGINA)
 			return
 		}
 		pagina := strings.TrimSpace(partes[1])
@@ -147,31 +159,31 @@ func procesarComando(g grafo.GrafoNoPesado[string], comando string) {
 
 	case "ciclo":
 		if len(partes) < 2 {
-			fmt.Println("Error: faltan parámetros")
+			fmt.Println(ERR_FALTAN_PARAMETROS)
 			return
 		}
 		params := strings.Split(partes[1], ",")
 		if len(params) != 2 {
-			fmt.Println("Error: formato incorrecto")
+			fmt.Println(ERR_FORMATO_INCORRECTO)
 			return
 		}
 		pagina := strings.TrimSpace(params[0])
 		n, err := strconv.Atoi(strings.TrimSpace(params[1]))
 		if err != nil {
-			fmt.Println("Error: n debe ser un número")
+			fmt.Println(ERR_N_NO_NUMERO)
 			return
 		}
 
 		ciclo := tp3.Ciclo(g, pagina, n)
 		if ciclo == nil {
-			fmt.Println("No se encontro recorrido")
+			fmt.Println(ERR_NO_RECORRIDO)
 		} else {
 			fmt.Println(strings.Join(ciclo, " -> "))
 		}
 
 	case "lectura":
 		if len(partes) < 2 {
-			fmt.Println("Error: faltan páginas")
+			fmt.Println(ERR_FALTAN_PAGINAS)
 			return
 		}
 		paginasStr := strings.Split(partes[1], ",")
@@ -182,7 +194,7 @@ func procesarComando(g grafo.GrafoNoPesado[string], comando string) {
 
 		orden := tp3.Lectura(g, paginas)
 		if orden == nil {
-			fmt.Println("No existe forma de leer las paginas en orden")
+			fmt.Println(ERR_NO_FORMA_ORDEN)
 		} else {
 			fmt.Println(strings.Join(orden, ", "))
 		}
@@ -190,7 +202,7 @@ func procesarComando(g grafo.GrafoNoPesado[string], comando string) {
 	case "diametro":
 		camino, costo := tp3.Diametro(g)
 		if camino == nil {
-			fmt.Println("No hay camino")
+			fmt.Println(ERR_NO_HAY_CAMINO)
 		} else {
 			fmt.Println(strings.Join(camino, " -> "))
 			fmt.Printf("Costo: %d\n", costo)
@@ -198,18 +210,18 @@ func procesarComando(g grafo.GrafoNoPesado[string], comando string) {
 
 	case "rango":
 		if len(partes) < 2 {
-			fmt.Println("Error: faltan parámetros")
+			fmt.Println(ERR_FALTAN_PARAMETROS)
 			return
 		}
 		params := strings.Split(partes[1], ",")
 		if len(params) != 2 {
-			fmt.Println("Error: formato incorrecto")
+			fmt.Println(ERR_FORMATO_INCORRECTO)
 			return
 		}
 		pagina := strings.TrimSpace(params[0])
 		n, err := strconv.Atoi(strings.TrimSpace(params[1]))
 		if err != nil {
-			fmt.Println("Error: n debe ser un número")
+			fmt.Println(ERR_N_NO_NUMERO)
 			return
 		}
 
@@ -218,7 +230,7 @@ func procesarComando(g grafo.GrafoNoPesado[string], comando string) {
 
 	case "navegacion":
 		if len(partes) < 2 {
-			fmt.Println("Error: falta la página")
+			fmt.Println(ERR_FALTA_PAGINA)
 			return
 		}
 		pagina := strings.TrimSpace(partes[1])
@@ -228,7 +240,7 @@ func procesarComando(g grafo.GrafoNoPesado[string], comando string) {
 
 	case "comunidad":
 		if len(partes) < 2 {
-			fmt.Println("Error: falta la página")
+			fmt.Println(ERR_FALTA_PAGINA)
 			return
 		}
 		pagina := strings.TrimSpace(partes[1])
