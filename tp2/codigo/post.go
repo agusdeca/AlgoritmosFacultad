@@ -59,7 +59,7 @@ func (p *post) MostrarLikes() string {
 	builder := strings.Builder{}
 	builder.WriteString(fmt.Sprintf("El post tiene %d likes:\n", p.likes.Cantidad()))
 
-	iter := p.likes.Iterador() 
+	iter := p.likes.Iterador()
 	for iter.HaySiguiente() {
 		nombre, _ := iter.VerActual()
 		builder.WriteString(fmt.Sprintf("\t%s\n", nombre))
