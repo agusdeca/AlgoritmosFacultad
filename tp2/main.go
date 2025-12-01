@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
 	"tp2/codigo"
 )
 
@@ -16,13 +17,15 @@ func main() {
 	}
 	rutaArchivo := os.Args[1]
 
-	sistema := codigo.NewAlgoGram()
-
-	//Cargar los usuarios iniciales
-	if err := sistema.CargarUsuarios(rutaArchivo); err != nil {
+	// leemos el archivo para obtener la lista de nombres
+	nombres, err := leerArchivoUsuarios(rutaArchivo)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error al cargar usuarios: %s\n", err.Error())
 		os.Exit(1)
 	}
+
+	// Crear el sistema con la lista de usuarios
+	sistema := codigo.NewAlgoGramFromUsers(nombres)
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
@@ -56,20 +59,36 @@ func main() {
 				continue
 			}
 			fmt.Println(sistema.MostrarLikes(id))
-
 		}
 	}
 }
 
-// Si no hay parámetro, devuelve parametro="".
+// leerArchivoUsuarios lee el archivo de usuarios y devuelve la lista de nombres
+func leerArchivoUsuarios(ruta string) ([]string, error) {
+	archivo, err := os.Open(ruta)
+	if err != nil {
+		return nil, err
+	}
+	defer archivo.Close()
+
+	var nombres []string
+	scanner := bufio.NewScanner(archivo)
+	for scanner.Scan() {
+		nombre := scanner.Text()
+		nombres = append(nombres, nombre)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return nombres, nil
+}
+
+// Si no hay parámetro, devuelve parametro=""
 func parsearLinea(linea string) (string, string) {
 	partes := strings.SplitN(linea, " ", 2)
-
 	comando := partes[0]
-
 	if len(partes) == 1 {
-		return comando, "" // No hay parámetro
+		return comando, ""
 	}
-
-	return comando, partes[1] // Hay parámetro
+	return comando, partes[1]
 }

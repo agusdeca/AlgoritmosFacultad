@@ -6,6 +6,16 @@ import (
 	tdadict "tdas/diccionario"
 )
 
+type Post interface {
+	ID() int
+	Autor() string
+	Texto() string
+	DarLike(nombre string)
+	CantidadLikes() int
+	MostrarLikes() string
+	String() string
+}
+
 type post struct {
 	id    int
 	autor *usuario
@@ -13,46 +23,54 @@ type post struct {
 	likes tdadict.Diccionario[string, bool]
 }
 
-func nuevoPost(id int, autor *usuario, texto string) *post {
+func nuevoPost(id int, autor *usuario, texto string) Post {
 	return &post{
 		id:    id,
 		autor: autor,
 		texto: texto,
-		likes: tdadict.CrearHash[string, bool](func(a, b string) bool { return a == b }),
+		likes: tdadict.CrearABB[string, bool](strings.Compare),
 	}
 }
 
-// darLike agrega el like de un usuario, si no existe ya
-func (p *post) darLike(nombre string) {
+func (p *post) ID() int {
+	return p.id
+}
+
+func (p *post) Autor() string {
+	return p.autor.nombre
+}
+func (p *post) Texto() string {
+	return p.texto
+}
+
+func (p *post) DarLike(nombre string) {
 	if !p.likes.Pertenece(nombre) {
 		p.likes.Guardar(nombre, true)
 	}
 }
 
-// cantidadLikes devuelve la cant de usuarios que dieron like
-func (p *post) cantidadLikes() int {
-	return p.likes.Cantidad()
-}
+func (p *post) CantidadLikes() int { return p.likes.Cantidad() }
 
-// obtenerUsuariosLikes devuelve una lista de nombres por orden alfabetico
-func (p *post) obtenerUsuariosLikes() []string {
-	nombres := make([]string, 0, p.likes.Cantidad())
-	likes := tdadict.CrearABB[string, bool](strings.Compare)
-	p.likes.Iterar(func(clave string, valor bool) bool {
-		likes.Guardar(clave, valor)
-		return true
-	})
-	iter := likes.Iterador()
+func (p *post) MostrarLikes() string {
+	if p.likes.Cantidad() == 0 {
+		return ""
+	}
+
+	builder := strings.Builder{}
+	builder.WriteString(fmt.Sprintf("El post tiene %d likes:\n", p.likes.Cantidad()))
+
+	iter := p.likes.Iterador() 
 	for iter.HaySiguiente() {
 		nombre, _ := iter.VerActual()
-		nombres = append(nombres, nombre)
+		builder.WriteString(fmt.Sprintf("\t%s\n", nombre))
 		iter.Siguiente()
 	}
-	return nombres
+
+	s := builder.String()
+	return strings.TrimSuffix(s, "\n")
 }
 
-// Imprimir
 func (p *post) String() string {
 	return fmt.Sprintf("Post ID %d\n%s dijo: %s\nLikes: %d",
-		p.id, p.autor.nombre, p.texto, p.cantidadLikes())
+		p.id, p.autor.nombre, p.texto, p.CantidadLikes())
 }

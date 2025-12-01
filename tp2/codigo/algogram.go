@@ -14,12 +14,10 @@ const (
 	ERR_LOGUEADO_POST     = "Usuario no loggeado o no hay mas posts para ver"
 	ERR_SIN_LIKES         = "Error: Post inexistente o sin likes"
 	MSJ_POST_PUBLICADO    = "Post publicado"
+	MSJ_POST_LIKEADO      = "Post likeado"
 )
 
 type AlgoGram interface {
-	// CargarUsuarios lee el archivo
-	CargarUsuarios(ruta string) error
-
 	// Login valida e inicia sesión de un usuario.
 	Login(nombre string) string
 
@@ -39,11 +37,22 @@ type AlgoGram interface {
 	MostrarLikes(id int) string
 }
 
-// Crea la instancia de la implementación
+// constructor sin usuarios (vacío)
 func NewAlgoGram() AlgoGram {
 	return &algogramImpl{
-		usuarios_hash:  diccionario.CrearHash[string, *usuario](func(a, b string) bool { return a == b }),
-		usuarios_lista: []*usuario{},
-		posts:          diccionario.CrearHash[int, *post](func(a, b int) bool { return a == b }),
+		usuarios_hash:    diccionario.CrearHash[string, Usuario](func(a, b string) bool { return a == b }),
+		posts:            diccionario.CrearHash[int, Post](func(a, b int) bool { return a == b }),
+		usuario_loggeado: nil,
+		proximo_id_post:  0,
 	}
+}
+
+// constructor que recibe una lista de nombres de usuario (la lectura del archivo queda en main)
+func NewAlgoGramFromUsers(nombres []string) AlgoGram {
+	ag := NewAlgoGram().(*algogramImpl)
+	for i, nombre := range nombres {
+		u := nuevoUsuario(nombre, i)
+		ag.usuarios_hash.Guardar(nombre, u)
+	}
+	return ag
 }

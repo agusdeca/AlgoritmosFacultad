@@ -5,9 +5,15 @@ import (
 	"tdas/cola_prioridad"
 )
 
-// entradaFeed guarda la info necesaria para priorizar posts en el feed
+type Usuario interface {
+	Nombre() string
+	Posicion() int
+	RecibirPost(Post)
+	ProximoPost() Post
+}
+
 type entradaFeed struct {
-	post      *post
+	post      Post
 	prioridad int
 	id_post   int
 }
@@ -18,7 +24,6 @@ type usuario struct {
 	feed     cola_prioridad.ColaPrioridad[entradaFeed]
 }
 
-// Func de comparacion
 func cmpFeed(a, b entradaFeed) int {
 	if a.prioridad != b.prioridad {
 		return b.prioridad - a.prioridad
@@ -26,7 +31,7 @@ func cmpFeed(a, b entradaFeed) int {
 	return b.id_post - a.id_post
 }
 
-func nuevoUsuario(nombre string, pos int) *usuario {
+func nuevoUsuario(nombre string, pos int) Usuario {
 	return &usuario{
 		nombre:   nombre,
 		posicion: pos,
@@ -34,25 +39,31 @@ func nuevoUsuario(nombre string, pos int) *usuario {
 	}
 }
 
-// agregarPostAlFeed agrega una entrada de post con la prioridad calculada
-func (u *usuario) agregarPostAlFeed(p *post, prioridad int) {
+func (u *usuario) Nombre() string {
+	return u.nombre
+}
+
+func (u *usuario) Posicion() int {
+	return u.posicion
+}
+
+func (u *usuario) calcularAfinidad(otro *usuario) int {
+	return int(math.Abs(float64(u.posicion - otro.posicion)))
+}
+
+func (u *usuario) RecibirPost(p Post) {
+	otro := p.(*post).autor
+	afinidad := u.calcularAfinidad(otro)
 	u.feed.Encolar(entradaFeed{
 		post:      p,
-		prioridad: prioridad,
-		id_post:   p.id,
+		prioridad: afinidad,
+		id_post:   p.ID(),
 	})
 }
 
-// proximoPost nos devuelve el siguiente post del feed
-func (u *usuario) proximoPost() *post {
+func (u *usuario) ProximoPost() Post {
 	if u.feed.EstaVacia() {
 		return nil
 	}
-	entrada := u.feed.Desencolar()
-	return entrada.post
-}
-
-// calcularAfinidad devuelve la distancia entre este usuario y otro.
-func (u *usuario) calcularAfinidad(otro *usuario) int {
-	return int(math.Abs(float64(u.posicion - otro.posicion)))
+	return u.feed.Desencolar().post
 }
